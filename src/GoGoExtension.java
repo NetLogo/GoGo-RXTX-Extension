@@ -112,7 +112,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoOpen extends DefaultCommand {
     public Syntax getSyntax() {
-      int[] right = {Syntax.TYPE_STRING};
+      int[] right = {Syntax.StringType()};
       return Syntax.commandSyntax(right);
     }
 
@@ -164,7 +164,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoListPorts extends DefaultReporter {
     public Syntax getSyntax() {
-      return Syntax.reporterSyntax(Syntax.TYPE_LIST);
+      return Syntax.reporterSyntax(Syntax.ListType());
     }
 
     public Object report(Argument args[], Context context)
@@ -180,7 +180,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoOpenPredicate extends DefaultReporter {
     public Syntax getSyntax() {
-      return Syntax.reporterSyntax(Syntax.TYPE_BOOLEAN);
+      return Syntax.reporterSyntax(Syntax.BooleanType());
     }
 
     public Object report(Argument args[], Context context)
@@ -194,7 +194,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoPing extends DefaultReporter {
     public Syntax getSyntax() {
-      return Syntax.reporterSyntax(Syntax.TYPE_BOOLEAN);
+      return Syntax.reporterSyntax(Syntax.BooleanType());
     }
 
     public Object report(Argument args[], Context context)
@@ -283,7 +283,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoOutputPortPower extends DefaultCommand {
     public Syntax getSyntax() {
-      int[] right = {Syntax.TYPE_NUMBER};
+      int[] right = {Syntax.NumberType()};
       return Syntax.commandSyntax(right);
     }
 
@@ -301,7 +301,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoTalkToOutputPorts extends DefaultCommand {
     public Syntax getSyntax() {
-      int[] right = {Syntax.TYPE_LIST};
+      int[] right = {Syntax.ListType()};
       return Syntax.commandSyntax(right);
     }
 
@@ -352,8 +352,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoSensorBurstValue extends DefaultReporter {
     public Syntax getSyntax() {
-      int[] right = {Syntax.TYPE_NUMBER};
-      return Syntax.reporterSyntax(right, Syntax.TYPE_NUMBER);
+      int[] right = {Syntax.NumberType()};
+      return Syntax.reporterSyntax(right, Syntax.NumberType());
     }
 
     public Object report(Argument args[], Context context)
@@ -414,7 +414,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoSetBurstMode extends DefaultCommand {
     public Syntax getSyntax() {
-      int[] right = {Syntax.TYPE_LIST, Syntax.TYPE_BOOLEAN};
+      int[] right = {Syntax.ListType(), Syntax.BooleanType()};
       return Syntax.commandSyntax(right);
     }
 
@@ -448,8 +448,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static class GoGoSensor extends DefaultReporter {
     public Syntax getSyntax() {
-      int[] right = {Syntax.TYPE_NUMBER};
-      return Syntax.reporterSyntax(right, Syntax.TYPE_NUMBER);
+      int[] right = {Syntax.NumberType()};
+      return Syntax.reporterSyntax(right, Syntax.NumberType());
     }
 
     public Object report(Argument args[], Context context)
