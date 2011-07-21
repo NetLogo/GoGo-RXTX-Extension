@@ -1,5 +1,4 @@
-classes
-gogo.jar
-gogo.zip
-RXTXcomm.jar
+*.jar
+/classes
+/gogo.zip
 /lib

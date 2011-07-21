@@ -14,6 +14,13 @@ gogo.jar: $(SRCS) manifest.txt Makefile RXTXcomm.jar
 	$(JAVAC) -g -deprecation -Xlint:all -Xlint:-serial -Xlint:-path -encoding us-ascii -source 1.5 -target 1.5 -classpath $(NETLOGO)/NetLogoLite.jar:RXTXcomm.jar -d classes $(SRCS)
 	jar cmf manifest.txt gogo.jar -C classes .
 
+gogo.zip: gogo.jar
+	rm -rf gogo
+	mkdir gogo
+	cp -rp gogo.jar README.md Makefile src manifest.txt fix-permissions.command gogo
+	zip -rv gogo.zip gogo
+	rm -rf gogo
+
 RXTXcomm.jar:
 	mkdir -p lib/Mac\ OS\ X lib/Windows lib/Linux-x86 lib/Linux-amd64
 	curl -s 'http://rxtx.qbang.org/pub/rxtx/rxtx-2.1-7-bins-r2/RXTXcomm.jar' -o RXTXcomm.jar
