@@ -24,7 +24,7 @@ gogo.zip: gogo.jar
 RXTXcomm.jar:
 	mkdir -p lib/Mac\ OS\ X lib/Windows lib/Linux-x86 lib/Linux-amd64
 	curl -s 'http://rxtx.qbang.org/pub/rxtx/rxtx-2.1-7-bins-r2/RXTXcomm.jar' -o RXTXcomm.jar
-	curl -s 'http://rxtx.qbang.org/pub/rxtx/rxtx-2.1-7-bins-r2/Mac_OS_X/librxtxSerial.jnilib' -o lib/Mac\ OS\ X/librxtxSerial.jnilib
+	curl -s 'http://blog.iharder.net/wp-content/uploads/2009/08/librxtxSerial.jnilib' -o lib/Mac\ OS\ X/librxtxSerial.jnilib
 	curl -s 'http://rxtx.qbang.org/pub/rxtx/rxtx-2.1-7-bins-r2/Windows/i368-mingw32/rxtxSerial.dll' -o lib/Windows/rxtxSerial.dll
 	curl -s 'http://rxtx.qbang.org/pub/rxtx/rxtx-2.1-7-bins-r2/Windows/i368-mingw32/rxtxParallel.dll' -o lib/Windows/rxtxParallel.dll
 	curl -s 'http://rxtx.qbang.org/pub/rxtx/rxtx-2.1-7-bins-r2/Linux/i686-unknown-linux-gnu/librxtxParallel.so' -o lib/Linux-x86/librxtxParallel.so
