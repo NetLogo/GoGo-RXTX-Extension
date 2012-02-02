@@ -20,5 +20,4 @@ If compilation succeeds, `gogo.jar` will be created.
 
 The NetLogo GoGo board extension is in the public domain.  To the extent possible under law, Uri Wilensky has waived all copyright and related or neighboring rights.
 
-For the managing connections with GoGo devices, NetLogo uses the RXTX library, Copyright 1997-2007 by Trent Jarvi tjarvi@qbang.org "and others who actually wrote it".  See individual source files for more information (http://users.frii.com/jarvi/rxtx/). The library is covered by the GNU LGPL (Lesser General Public License). The text of that license is included in the "docs" folder which accompanies the NetLogo download, and is also available from http://www.gnu.org/copyleft/lesser.html .
-
+For managing connections with GoGo devices, this extension uses the RXTX library, Copyright 1997-2007 by Trent Jarvi tjarvi@qbang.org "and others who actually wrote it".  See individual source files for more information (http://users.frii.com/jarvi/rxtx/). The library is covered by the GNU LGPL (Lesser General Public License). The text of that license is included in the "docs" folder which accompanies NetLogo, and is also available from http://www.gnu.org/copyleft/lesser.html .
