@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.ListIterator;
 
 // Use the full replacement RXTX which has it's own package space
 // and doesn't need to Sun javax.comm jar
@@ -552,9 +551,8 @@ public class GoGoController {
 
     for (int i = 0; i < args.length; i++) {
       if (args[i].equals("-l")) {
-        ListIterator portIterator = serialPorts().listIterator();
-        while (portIterator.hasNext()) {
-          System.out.println((String) portIterator.next());
+        for (String portName : serialPorts()) {
+            System.out.println(portName);
         }
         System.exit(0);
       } else if (args[i].equals("-p")) {

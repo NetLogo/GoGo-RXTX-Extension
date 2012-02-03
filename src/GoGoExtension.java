@@ -2,27 +2,39 @@
 
 package org.nlogo.extensions.gogo;
 
-import org.nlogo.api.Syntax;
+import org.nlogo.api.Argument;
 import org.nlogo.api.Context;
 import org.nlogo.api.DefaultCommand;
 import org.nlogo.api.DefaultReporter;
-import org.nlogo.api.Argument;
-import org.nlogo.api.Context;
-import org.nlogo.api.LogoList;
 import org.nlogo.api.ExtensionException;
 import org.nlogo.api.ExtensionManager;
+import org.nlogo.api.I18N;
+import org.nlogo.api.LogoList;
+import org.nlogo.api.Syntax;
+import org.nlogo.app.App;
+import org.nlogo.app.AppFrame;
+import org.nlogo.swing.OptionDialog;
+import org.nlogo.workspace.AbstractWorkspace;
 
-import java.net.URL;
 import java.io.File;
+import java.io.IOException;
+import java.util.prefs.Preferences;
 
 public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static GoGoController controller;
 
-  public void runOnce(org.nlogo.api.ExtensionManager em)
-      throws ExtensionException {
-    em.addToLibraryPath(this, "lib");
-  }
+  private static final String WIN_DIR_ENV_VAR_NAME = "WINDIR";
+  private static final String WIN_DIR_PATH_EXTENSION = "\\System32\\DriverStore\\FileRepository";
+  private static final String NETLOGO_PREF_NODE_NAME = "/org/nlogo/NetLogo";
+  private static final String ASK_ABOUT_GOGO_DRIVERS_KEY = "gogo.pester";
+  private static final String GOGO_DRIVER_EVIDENCE_NAME = "cdc_acm_class";
+  private static final String SERIAL_INSTALLER_NAME = "WindowsSerialInstaller.exe";
+  private static final String HALT_FOREVER_STRING = "Halt and Don't Remind Me Again";
+  private static final String WINDOWS_PROMPT_MESSAGE = "Your GoGo Board does not appear to have been properly recognized by Windows.\n" +
+                                                       "If you would like, NetLogo can launch a driver installer that should fix this issue.\n" +
+                                                       "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n" +
+                                                       "Afterwards, you will need to disconnect and reconnect your GoGo Board in order for it to be properly recognized.";
 
   public void load(org.nlogo.api.PrimitiveManager primManager) {
     primManager.addPrimitive("ports", new GoGoListPorts());
@@ -45,6 +57,89 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     //primManager.addPrimitive( "switch", new GoGoSwitch() ) ;
   }
 
+  public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
+    em.addToLibraryPath(this, "lib");
+    if (System.getProperty("os.name").startsWith("Windows")) {
+      final String baseDirPath = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().getFile()).getParent();
+      final String fileSep = System.getProperty("file.separator");
+      verifyDriverValidity(baseDirPath, fileSep, em);
+    }
+  }
+
+  private void verifyDriverValidity(String baseDirPath, String fileSep, org.nlogo.api.ExtensionManager extensionManager) {
+    if (deviceNeedsInstallation()) {
+      if (obtainPermissionToInstall(extensionManager)) {
+        try {
+          (new ProcessBuilder("cmd.exe", "/C", baseDirPath + fileSep + SERIAL_INSTALLER_NAME)).start();
+        }
+        catch (IOException e) {
+          System.err.println("Could not execute serial driver installer: " + e.getMessage());
+        }
+      }
+    }
+  }
+
+  private boolean deviceNeedsInstallation() {
+
+    // Check to see whether or not the user has asked not to be bothered about this anymore
+    Preferences prefs = Preferences.userRoot().node(NETLOGO_PREF_NODE_NAME);
+    boolean isOkWithBeingPestered = prefs.getBoolean(ASK_ABOUT_GOGO_DRIVERS_KEY, true);
+
+    if (isOkWithBeingPestered) {
+      String winDirPath = System.getenv(WIN_DIR_ENV_VAR_NAME);
+      String hostDirPath = winDirPath + WIN_DIR_PATH_EXTENSION;
+      return !canFindDriverDirectory(new File(hostDirPath));
+    }
+    else {
+      return false;
+    }
+
+  }
+
+  private boolean canFindDriverDirectory(File file) {
+    try {
+      for (File f : file.listFiles()) {
+        if (f.isDirectory() && f.getName().contains(GOGO_DRIVER_EVIDENCE_NAME)) {
+          return true;
+        }
+      }
+    }
+    catch (Exception e) {
+      System.err.println("Could not find path " + file.getAbsolutePath() + "  See: " + e.getMessage());
+    }
+    return false;
+  }
+
+  private boolean obtainPermissionToInstall(org.nlogo.api.ExtensionManager extensionManager) {
+
+    try {
+
+      if (AbstractWorkspace.isApp()) {
+
+        AppFrame parent = App.app().frame();
+
+        int result = OptionDialog.show(parent, "User Message", WINDOWS_PROMPT_MESSAGE,
+                                       new String[] { I18N.gui().get("common.buttons.ok"), HALT_FOREVER_STRING, I18N.gui().get("common.buttons.halt") });
+
+        if (result == 1) {
+          Preferences prefs = Preferences.userRoot().node(NETLOGO_PREF_NODE_NAME);
+          prefs.putBoolean(ASK_ABOUT_GOGO_DRIVERS_KEY, false);
+        }
+
+        return (result == 0);
+
+      }
+
+      return false;
+
+    }
+    catch (Throwable e) {
+      System.err.println("Could not obtain permission to install Windows driver fix: " + e.getMessage());
+      return false;
+    }
+
+  }
+
   public void unload(ExtensionManager em) {
     close();
     // Since native libraries cannot be loaded in more than one classloader at once
@@ -60,7 +155,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       for (Object o : libs) {
         java.lang.reflect.Method finalize = o.getClass().getDeclaredMethod("finalize", new Class[0]);
         finalize.setAccessible(true);
-        finalize.invoke(o, new Object[0]);
+        finalize.invoke(o);
       }
     } catch (Exception e) {
       System.err.println(e.getMessage());
@@ -103,7 +198,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         close();
       } catch (RuntimeException e) {
         throw new ExtensionException("Cannot close port: " +
-            controller.currentPortName() + " : " + e.getLocalizedMessage());
+                                     controller.currentPortName() + " : " + e.getLocalizedMessage());
       }
       try {
         initController(args[0].getString());
@@ -120,7 +215,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         if (!controller.ping()) {
           throw new ExtensionException("GoGo board not responding.");
         }
-
       } catch (RuntimeException e) {
         throw new ExtensionException("GoGo board not responding: " + e.getLocalizedMessage());
       }
@@ -138,7 +232,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         close();
       } catch (RuntimeException e) {
         throw new ExtensionException("Cannot close port: " +
-            controller.currentPortName() + " : " + e.getLocalizedMessage());
+                                     controller.currentPortName() + " : " + e.getLocalizedMessage());
       }
     }
   }
@@ -167,9 +261,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     public Object report(Argument args[], Context context)
         throws ExtensionException, org.nlogo.api.LogoException {
       return ((controller != null)
-          && (controller.currentPort() != null))
-          ? Boolean.TRUE
-          : Boolean.FALSE;
+              && (controller.currentPort() != null))
+             ? Boolean.TRUE
+             : Boolean.FALSE;
     }
   }
 
@@ -185,8 +279,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       }
 
       return controller.ping()
-          ? Boolean.TRUE
-          : Boolean.FALSE;
+             ? Boolean.TRUE
+             : Boolean.FALSE;
     }
   }
 
@@ -402,7 +496,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     public void perform(Argument args[], Context context)
         throws ExtensionException, org.nlogo.api.LogoException {
       int sensorMask = sensorMask(args[0].getList());
-      int speed = args[1].getBoolean().booleanValue() ? GoGoController.BURST_SPEED_HIGH : GoGoController.BURST_SPEED_LOW;
+      int speed = args[1].getBoolean() ? GoGoController.BURST_SPEED_HIGH : GoGoController.BURST_SPEED_LOW;
 
       controller.setBurstMode(sensorMask, speed);
       burstCycleHandler = new NLBurstCycleHandler();
@@ -445,13 +539,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
 
-  public GoGoController getController() {
-    return controller;
-  }
-
-
   @Override
   public java.util.List<String> additionalJars() {
-    return java.util.Arrays.asList(new String[]{"RXTXcomm.jar"});
+    return java.util.Arrays.asList("RXTXcomm.jar");
   }
 }
