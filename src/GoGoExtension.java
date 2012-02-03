@@ -19,31 +19,12 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static GoGoController controller;
 
+  public void runOnce(org.nlogo.api.ExtensionManager em)
+      throws ExtensionException {
+    em.addToLibraryPath(this, "lib");
+  }
+
   public void load(org.nlogo.api.PrimitiveManager primManager) {
-
-    // Reset the "sys_paths" field of the ClassLoader to null.
-    try {
-
-      final String basedir = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().getFile()).getParent();
-      final String filesep = System.getProperty("file.separator");
-      String libdir = basedir + filesep + "lib" + filesep;
-
-      String osname = System.getProperty("os.name");
-      if (osname.equals("Mac OS X")) {
-        libdir = libdir + osname;
-      } else if (osname.startsWith("Windows")) {
-        libdir = libdir + "Windows";
-      } else {
-        final String systype = System.getProperty("os.name") + "-" + System.getProperty("os.arch");
-        libdir = libdir + osname + "-" + System.getProperty("os.arch");
-      }
-      org.nlogo.api.JavaLibraryPath.add(new java.io.File(libdir));
-
-    } catch (Exception ex) {
-      System.err.println("Cannot add our native libraries to java.library.path: " + ex.getMessage());
-    }
-
-
     primManager.addPrimitive("ports", new GoGoListPorts());
     primManager.addPrimitive("open", new GoGoOpen());
     primManager.addPrimitive("open?", new GoGoOpenPredicate());
