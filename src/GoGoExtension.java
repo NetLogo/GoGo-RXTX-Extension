@@ -28,8 +28,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
   private static final String WIN_DIR_PATH_EXTENSION = "\\System32\\DriverStore\\FileRepository";
   private static final String NETLOGO_PREF_NODE_NAME = "/org/nlogo/NetLogo";
   private static final String ASK_ABOUT_GOGO_DRIVERS_KEY = "gogo.pester";
-  private static final String GOGO_DRIVER_EVIDENCE_NAME = "cdc_acm_class";
-  private static final String SERIAL_INSTALLER_NAME = "WindowsSerialInstaller.exe";
+  private static final String GOGO_DRIVER_EVIDENCE_NAME = "gogo_c";
+  private static final String SERIAL_INSTALLER_NAME = "WindowsGoGoInstaller.exe";
   private static final String HALT_FOREVER_STRING = "Halt and Don't Remind Me Again";
   private static final String WINDOWS_PROMPT_MESSAGE = "Your GoGo Board does not appear to have been properly recognized by Windows.\n" +
                                                        "If you would like, NetLogo can launch a driver installer that should fix this issue.\n" +
