@@ -29,11 +29,12 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
   private static final String NETLOGO_PREF_NODE_NAME = "/org/nlogo/NetLogo";
   private static final String ASK_ABOUT_GOGO_DRIVERS_KEY = "gogo.pester";
   private static final String GOGO_DRIVER_EVIDENCE_NAME = "gogo_c";
-  private static final String SERIAL_INSTALLER_NAME = "WindowsGoGoInstaller.exe";
+  private static final String SERIAL_INSTALLER_PATH = "Windows";
+  private static final String SERIAL_INSTALLER_NAME = "WindowsGoGoInstaller_%d.exe";
   private static final String HALT_FOREVER_STRING = "Halt and Don't Remind Me Again";
-  private static final String WINDOWS_PROMPT_MESSAGE = "Your GoGo Board does not appear to have been properly recognized by Windows.\n" +
-                                                       "If you would like, NetLogo can launch a driver installer that should fix this issue.\n" +
-                                                       "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n" +
+  private static final String WINDOWS_PROMPT_MESSAGE = "Your GoGo Board does not appear to have been properly recognized by Windows.\n\n" +
+                                                       "If you would like, NetLogo can launch a driver installer that should fix this issue.\n\n" +
+                                                       "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n\n" +
                                                        "Afterwards, you will need to disconnect and reconnect your GoGo Board in order for it to be properly recognized.";
 
   public void load(org.nlogo.api.PrimitiveManager primManager) {
@@ -70,8 +71,17 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     if (deviceNeedsInstallation()) {
       if (obtainPermissionToInstall(extensionManager)) {
         try {
-          (new ProcessBuilder("cmd.exe", "/C", baseDirPath + fileSep + SERIAL_INSTALLER_NAME)).start();
-        }
+		  
+		  int archBits = 32;
+		  String subarch = System.getenv().get("PROCESSOR_ARCHITEW6432");
+		  if (System.getProperty("os.arch").endsWith("64") || ((subarch != null) && subarch.endsWith("64"))) {
+		    archBits = 64;
+		  }
+		  String installerName = String.format(SERIAL_INSTALLER_NAME, archBits);
+	
+          (new ProcessBuilder("cmd.exe", "/C", baseDirPath + fileSep + SERIAL_INSTALLER_PATH + fileSep + installerName)).start();
+        
+		}
         catch (IOException e) {
           System.err.println("Could not execute serial driver installer: " + e.getMessage());
         }
