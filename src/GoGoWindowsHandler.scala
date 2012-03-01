@@ -57,28 +57,26 @@ object GoGoWindowsHandler {
   private def deviceNeedsInstallation: Boolean = {
     val prefs = Preferences.userRoot.node(NetLogoPrefNodeName)
     val isOkWithBeingPestered = prefs.getBoolean(AskAboutGoGoDriversKey, true)
-    if (isOkWithBeingPestered) {
+    isOkWithBeingPestered && {
       val winDirPath = System.getenv(WinDirEnvVarName)
       val hostDirPath = winDirPath + WinDirPathExtension
       !canFindDriverDirectory(new File(hostDirPath))
     }
-    else
-      false
   }
 
   private def canFindDriverDirectory(file: File): Boolean = {
     try
-      file.listFiles exists { case f => f.isDirectory && f.getName.contains(GoGoDriverEvidenceName) }
+      file.listFiles exists { f => f.isDirectory && f.getName.contains(GoGoDriverEvidenceName) }
     catch {
       case e =>
         System.err.println("Could not find path " + file.getAbsolutePath + "  See: " + e.getMessage)
+        false
     }
-    false
   }
 
   private def obtainPermissionToInstall(extensionManager: ExtensionManager): Boolean = {
-    try {
-      if (AbstractWorkspace.isApp) {
+    try
+      AbstractWorkspace.isApp && {
         val parent = App.app.frame
         val result = OptionDialog.show(parent, "User Message", WindowsPromptMessage,
           Array(I18N.gui.get("common.buttons.ok"), HaltForeverString, I18N.gui.get("common.buttons.halt")))
@@ -86,10 +84,8 @@ object GoGoWindowsHandler {
           val prefs = Preferences.userRoot.node(NetLogoPrefNodeName)
           prefs.putBoolean(AskAboutGoGoDriversKey, false)
         }
-        return (result == 0)
+        result == 0
       }
-      false
-    }
     catch {
       case e =>
         System.err.println("Could not obtain permission to install Windows driver fix: " + e.getMessage)
