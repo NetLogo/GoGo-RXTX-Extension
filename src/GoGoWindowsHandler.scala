@@ -10,15 +10,15 @@ import java.security.{Policy, PrivilegedAction, AccessController}
 
 object GoGoWindowsHandler {
 
-  private val WIN_DIR_ENV_VAR_NAME = "WINDIR"
-  private val WIN_DIR_PATH_EXTENSION = "\\System32\\DriverStore\\FileRepository"
-  private val NETLOGO_PREF_NODE_NAME = "/org/nlogo/NetLogo"
-  private val ASK_ABOUT_GOGO_DRIVERS_KEY = "gogo.pester"
-  private val GOGO_DRIVER_EVIDENCE_NAME = "gogo_c"
-  private val SERIAL_INSTALLER_PATH = "Windows"
-  private val SERIAL_INSTALLER_NAME = "WindowsGoGoInstaller_%d.exe"
-  private val HALT_FOREVER_STRING = "Halt and Don't Remind Me Again"
-  private val WINDOWS_PROMPT_MESSAGE =
+  private val WinDirEnvVarName = "WINDIR"
+  private val WinDirPathExtension = "\\System32\\DriverStore\\FileRepository"
+  private val NetLogoPrefNodeName = "/org/nlogo/NetLogo"
+  private val AskAboutGoGoDriversKey = "gogo.pester"
+  private val GoGoDriverEvidenceName = "gogo_c"
+  private val SerialInstallerPath = "Windows"
+  private val SerialInstallerName = "WindowsGoGoInstaller_%d.exe"
+  private val HaltForeverString = "Halt and Don't Remind Me Again"
+  private val WindowsPromptMessage =
     "Your GoGo Board does not appear to have been properly recognized by Windows.\n\n" +
     "If you would like, NetLogo can launch a driver installer that should fix this issue.\n\n" +
     "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n\n" +
@@ -40,10 +40,10 @@ object GoGoWindowsHandler {
               64
             else
               32
-          val installerName = SERIAL_INSTALLER_NAME.format(archBits)
+          val installerName = SerialInstallerName.format(archBits)
           val builder =
             new ProcessBuilder("cmd.exe", "/C",
-                               baseDirPath + fileSep + SERIAL_INSTALLER_PATH + fileSep + installerName)
+                               baseDirPath + fileSep + SerialInstallerPath + fileSep + installerName)
           builder.start()
         }
         catch {
@@ -55,11 +55,11 @@ object GoGoWindowsHandler {
   }
 
   private def deviceNeedsInstallation: Boolean = {
-    val prefs = Preferences.userRoot.node(NETLOGO_PREF_NODE_NAME)
-    val isOkWithBeingPestered = prefs.getBoolean(ASK_ABOUT_GOGO_DRIVERS_KEY, true)
+    val prefs = Preferences.userRoot.node(NetLogoPrefNodeName)
+    val isOkWithBeingPestered = prefs.getBoolean(AskAboutGoGoDriversKey, true)
     if (isOkWithBeingPestered) {
-      val winDirPath = System.getenv(WIN_DIR_ENV_VAR_NAME)
-      val hostDirPath = winDirPath + WIN_DIR_PATH_EXTENSION
+      val winDirPath = System.getenv(WinDirEnvVarName)
+      val hostDirPath = winDirPath + WinDirPathExtension
       !canFindDriverDirectory(new File(hostDirPath))
     }
     else
@@ -68,7 +68,7 @@ object GoGoWindowsHandler {
 
   private def canFindDriverDirectory(file: File): Boolean = {
     try
-      file.listFiles exists { case f => f.isDirectory && f.getName.contains(GOGO_DRIVER_EVIDENCE_NAME) }
+      file.listFiles exists { case f => f.isDirectory && f.getName.contains(GoGoDriverEvidenceName) }
     catch {
       case e =>
         System.err.println("Could not find path " + file.getAbsolutePath + "  See: " + e.getMessage)
@@ -80,11 +80,11 @@ object GoGoWindowsHandler {
     try {
       if (AbstractWorkspace.isApp) {
         val parent = App.app.frame
-        val result = OptionDialog.show(parent, "User Message", WINDOWS_PROMPT_MESSAGE,
-          Array(I18N.gui.get("common.buttons.ok"), HALT_FOREVER_STRING, I18N.gui.get("common.buttons.halt")))
+        val result = OptionDialog.show(parent, "User Message", WindowsPromptMessage,
+          Array(I18N.gui.get("common.buttons.ok"), HaltForeverString, I18N.gui.get("common.buttons.halt")))
         if (result == 1) {
-          val prefs = Preferences.userRoot.node(NETLOGO_PREF_NODE_NAME)
-          prefs.putBoolean(ASK_ABOUT_GOGO_DRIVERS_KEY, false)
+          val prefs = Preferences.userRoot.node(NetLogoPrefNodeName)
+          prefs.putBoolean(AskAboutGoGoDriversKey, false)
         }
         return (result == 0)
       }
