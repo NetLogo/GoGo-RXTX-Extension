@@ -11,7 +11,7 @@ ifeq ($(origin SCALA_JAR), undefined)
 endif
 
 ifeq ($(origin SCALA_HOME), undefined)
-  SCALA_HOME=/usr/local
+  SCALA_HOME=../..
 endif
 
 SCALA_SRCS=$(wildcard src/*.scala)
