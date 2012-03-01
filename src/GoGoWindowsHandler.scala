@@ -10,7 +10,6 @@ import java.security.{Policy, PrivilegedAction, AccessController}
 
 object GoGoWindowsHandler {
 
-
   private val WIN_DIR_ENV_VAR_NAME = "WINDIR"
   private val WIN_DIR_PATH_EXTENSION = "\\System32\\DriverStore\\FileRepository"
   private val NETLOGO_PREF_NODE_NAME = "/org/nlogo/NetLogo"
@@ -19,10 +18,11 @@ object GoGoWindowsHandler {
   private val SERIAL_INSTALLER_PATH = "Windows"
   private val SERIAL_INSTALLER_NAME = "WindowsGoGoInstaller_%d.exe"
   private val HALT_FOREVER_STRING = "Halt and Don't Remind Me Again"
-  private val WINDOWS_PROMPT_MESSAGE = "Your GoGo Board does not appear to have been properly recognized by Windows.\n\n" +
-                                       "If you would like, NetLogo can launch a driver installer that should fix this issue.\n\n" +
-                                       "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n\n" +
-                                       "Afterwards, you will need to disconnect and reconnect your GoGo Board in order for it to be properly recognized."
+  private val WINDOWS_PROMPT_MESSAGE =
+    "Your GoGo Board does not appear to have been properly recognized by Windows.\n\n" +
+    "If you would like, NetLogo can launch a driver installer that should fix this issue.\n\n" +
+    "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n\n" +
+    "Afterwards, you will need to disconnect and reconnect your GoGo Board in order for it to be properly recognized."
 
   def run(em: ExtensionManager) {
     val baseDirPath = new File(this.getClass.getProtectionDomain.getCodeSource.getLocation.getFile).getParent
@@ -35,14 +35,16 @@ object GoGoWindowsHandler {
       if (obtainPermissionToInstall(extensionManager)) {
         try {
           val subarch = System.getenv.get("PROCESSOR_ARCHITEW6432")
-          val archBits = {
+          val archBits =
             if (System.getProperty("os.arch").endsWith("64") || ((subarch != null) && subarch.endsWith("64")))
               64
             else
               32
-          }
           val installerName = SERIAL_INSTALLER_NAME.format(archBits)
-          (new ProcessBuilder("cmd.exe", "/C", baseDirPath + fileSep + SERIAL_INSTALLER_PATH + fileSep + installerName)).start
+          val builder =
+            new ProcessBuilder("cmd.exe", "/C",
+                               baseDirPath + fileSep + SERIAL_INSTALLER_PATH + fileSep + installerName)
+          builder.start()
         }
         catch {
           case e: java.io.IOException =>
