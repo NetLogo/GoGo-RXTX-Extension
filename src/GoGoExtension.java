@@ -16,26 +16,9 @@ import org.nlogo.app.AppFrame;
 import org.nlogo.swing.OptionDialog;
 import org.nlogo.workspace.AbstractWorkspace;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.prefs.Preferences;
-
 public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static GoGoController controller;
-
-  private static final String WIN_DIR_ENV_VAR_NAME = "WINDIR";
-  private static final String WIN_DIR_PATH_EXTENSION = "\\System32\\DriverStore\\FileRepository";
-  private static final String NETLOGO_PREF_NODE_NAME = "/org/nlogo/NetLogo";
-  private static final String ASK_ABOUT_GOGO_DRIVERS_KEY = "gogo.pester";
-  private static final String GOGO_DRIVER_EVIDENCE_NAME = "gogo_c";
-  private static final String SERIAL_INSTALLER_PATH = "Windows";
-  private static final String SERIAL_INSTALLER_NAME = "WindowsGoGoInstaller_%d.exe";
-  private static final String HALT_FOREVER_STRING = "Halt and Don't Remind Me Again";
-  private static final String WINDOWS_PROMPT_MESSAGE = "Your GoGo Board does not appear to have been properly recognized by Windows.\n\n" +
-                                                       "If you would like, NetLogo can launch a driver installer that should fix this issue.\n\n" +
-                                                       "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n\n" +
-                                                       "Afterwards, you will need to disconnect and reconnect your GoGo Board in order for it to be properly recognized.";
 
   public void load(org.nlogo.api.PrimitiveManager primManager) {
     primManager.addPrimitive("ports", new GoGoListPorts());
@@ -61,93 +44,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
   public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
     em.addToLibraryPath(this, "lib");
     if (System.getProperty("os.name").startsWith("Windows")) {
-      final String baseDirPath = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().getFile()).getParent();
-      final String fileSep = System.getProperty("file.separator");
-      verifyDriverValidity(baseDirPath, fileSep, em);
+      GoGoWindowsHandler.run(em);
     }
-  }
-
-  private void verifyDriverValidity(String baseDirPath, String fileSep, org.nlogo.api.ExtensionManager extensionManager) {
-    if (deviceNeedsInstallation()) {
-      if (obtainPermissionToInstall(extensionManager)) {
-        try {
-		  
-		  int archBits = 32;
-		  String subarch = System.getenv().get("PROCESSOR_ARCHITEW6432");
-		  if (System.getProperty("os.arch").endsWith("64") || ((subarch != null) && subarch.endsWith("64"))) {
-		    archBits = 64;
-		  }
-		  String installerName = String.format(SERIAL_INSTALLER_NAME, archBits);
-	
-          (new ProcessBuilder("cmd.exe", "/C", baseDirPath + fileSep + SERIAL_INSTALLER_PATH + fileSep + installerName)).start();
-        
-		}
-        catch (IOException e) {
-          System.err.println("Could not execute serial driver installer: " + e.getMessage());
-        }
-      }
-    }
-  }
-
-  private boolean deviceNeedsInstallation() {
-
-    // Check to see whether or not the user has asked not to be bothered about this anymore
-    Preferences prefs = Preferences.userRoot().node(NETLOGO_PREF_NODE_NAME);
-    boolean isOkWithBeingPestered = prefs.getBoolean(ASK_ABOUT_GOGO_DRIVERS_KEY, true);
-
-    if (isOkWithBeingPestered) {
-      String winDirPath = System.getenv(WIN_DIR_ENV_VAR_NAME);
-      String hostDirPath = winDirPath + WIN_DIR_PATH_EXTENSION;
-      return !canFindDriverDirectory(new File(hostDirPath));
-    }
-    else {
-      return false;
-    }
-
-  }
-
-  private boolean canFindDriverDirectory(File file) {
-    try {
-      for (File f : file.listFiles()) {
-        if (f.isDirectory() && f.getName().contains(GOGO_DRIVER_EVIDENCE_NAME)) {
-          return true;
-        }
-      }
-    }
-    catch (Exception e) {
-      System.err.println("Could not find path " + file.getAbsolutePath() + "  See: " + e.getMessage());
-    }
-    return false;
-  }
-
-  private boolean obtainPermissionToInstall(org.nlogo.api.ExtensionManager extensionManager) {
-
-    try {
-
-      if (AbstractWorkspace.isApp()) {
-
-        AppFrame parent = App.app().frame();
-
-        int result = OptionDialog.show(parent, "User Message", WINDOWS_PROMPT_MESSAGE,
-                                       new String[] { I18N.gui().get("common.buttons.ok"), HALT_FOREVER_STRING, I18N.gui().get("common.buttons.halt") });
-
-        if (result == 1) {
-          Preferences prefs = Preferences.userRoot().node(NETLOGO_PREF_NODE_NAME);
-          prefs.putBoolean(ASK_ABOUT_GOGO_DRIVERS_KEY, false);
-        }
-
-        return (result == 0);
-
-      }
-
-      return false;
-
-    }
-    catch (Throwable e) {
-      System.err.println("Could not obtain permission to install Windows driver fix: " + e.getMessage());
-      return false;
-    }
-
   }
 
   public void unload(ExtensionManager em) {

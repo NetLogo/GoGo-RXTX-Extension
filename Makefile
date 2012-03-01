@@ -10,11 +10,17 @@ ifeq ($(origin SCALA_JAR), undefined)
   SCALA_JAR=$(NETLOGO)/lib/scala-library.jar
 endif
 
-SRCS=$(wildcard src/*.java)
+ifeq ($(origin SCALA_HOME), undefined)
+  SCALA_HOME=/usr/local
+endif
+
+SCALA_SRCS=$(wildcard src/*.scala)
+JAVA_SRCS=$(wildcard src/*.java)
 
 gogo.jar: $(SRCS) manifest.txt Makefile RXTXcomm.jar
 	mkdir -p classes
-	$(JAVA_HOME)/bin/javac -g -deprecation -Xlint:all -Xlint:-serial -Xlint:-path -encoding us-ascii -source 1.5 -target 1.5 -classpath $(NETLOGO)/NetLogo.jar:$(SCALA_JAR):RXTXcomm.jar -d classes $(SRCS)
+	$(SCALA_HOME)/bin/scalac -deprecation -unchecked -encoding us-ascii -classpath $(NETLOGO)/NetLogo.jar -d classes $(SCALA_SRCS) $(JAVA_SRCS)
+	$(JAVA_HOME)/bin/javac -g -deprecation -Xlint:all -Xlint:-serial -Xlint:-path -encoding us-ascii -source 1.5 -target 1.5 -classpath $(NETLOGO)/NetLogo.jar:$(SCALA_JAR):RXTXcomm.jar:classes -d classes $(JAVA_SRCS)
 	jar cmf manifest.txt gogo.jar -C classes .
 
 gogo.zip: gogo.jar
