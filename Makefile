@@ -1,3 +1,5 @@
+NL_JAR_NAME=NetLogo.jar
+
 ifeq ($(origin JAVA_HOME), undefined)
   JAVA_HOME=/usr
 endif
@@ -14,13 +16,24 @@ ifeq ($(origin SCALA_HOME), undefined)
   SCALA_HOME=../..
 endif
 
+ifneq (,$(findstring CYGWIN,$(shell uname -s)))
+  COLON=\;
+  JAVA_HOME:=`cygpath -up "$(JAVA_HOME)"`
+  SCALA_HOME:=`cygpath -up "$(SCALA_HOME)"`
+  NETLOGO_JAR:=`cygpath -w "$(NETLOGO)"/"$(NL_JAR_NAME)"`
+  SCALA_JAR:=`cygpath -w "$(SCALA_JAR)"`
+else
+  COLON=:
+  NETLOGO_JAR:=$(NETLOGO)/$(NL_JAR_NAME)
+endif
+
 SCALA_SRCS=$(wildcard src/*.scala)
 JAVA_SRCS=$(wildcard src/*.java)
 
 gogo.jar: $(SRCS) manifest.txt Makefile RXTXcomm.jar
 	mkdir -p classes
-	$(SCALA_HOME)/bin/scalac -deprecation -unchecked -encoding us-ascii -classpath $(NETLOGO)/NetLogo.jar -d classes $(SCALA_SRCS) $(JAVA_SRCS)
-	$(JAVA_HOME)/bin/javac -g -deprecation -Xlint:all -Xlint:-serial -Xlint:-path -encoding us-ascii -source 1.5 -target 1.5 -classpath $(NETLOGO)/NetLogo.jar:$(SCALA_JAR):RXTXcomm.jar:classes -d classes $(JAVA_SRCS)
+	$(SCALA_HOME)/bin/scalac -deprecation -unchecked -encoding us-ascii -classpath $(NETLOGO_JAR) -d classes $(SCALA_SRCS) $(JAVA_SRCS)
+	$(JAVA_HOME)/bin/javac -g -deprecation -Xlint:all -Xlint:-serial -Xlint:-path -encoding us-ascii -source 1.5 -target 1.5 -classpath $(NETLOGO_JAR)$(COLON)$(SCALA_JAR)$(COLON)RXTXcomm.jar$(COLON)classes -d classes $(JAVA_SRCS)
 	jar cmf manifest.txt gogo.jar -C classes .
 
 gogo.zip: gogo.jar
