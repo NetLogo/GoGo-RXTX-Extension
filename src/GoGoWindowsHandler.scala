@@ -6,7 +6,6 @@ import org.nlogo.workspace.AbstractWorkspace
 import org.nlogo.app.App
 import org.nlogo.swing.OptionDialog
 import org.nlogo.api.{I18N, ExtensionManager}
-import java.security.{Policy, PrivilegedAction, AccessController}
 
 object GoGoWindowsHandler {
 
@@ -17,12 +16,19 @@ object GoGoWindowsHandler {
   private val GoGoDriverEvidenceName = "gogo_c"
   private val SerialInstallerPath = "Windows"
   private val SerialInstallerName = "WindowsGoGoInstaller_%d.exe"
-  private val HaltForeverString = "Halt and Don't Remind Me Again"
+  private val StopBotheringMeString = "My GoGo Board Is Installed Fine / Stop Bothering Me"
+  private val GoGoANoGoMessage = "Your GoGo Board does not appear to have been properly recognized by Windows."
   private val WindowsPromptMessage =
-    "Your GoGo Board does not appear to have been properly recognized by Windows.\n\n" +
+    GoGoANoGoMessage + "\n\n" +
     "If you would like, NetLogo can launch a driver installer that should fix this issue.\n\n" +
     "In order to do so, you will need administrator access to the computer, and you will be asked to accept the installation of an \"unsigned\" driver.\n\n" +
     "Afterwards, you will need to disconnect and reconnect your GoGo Board in order for it to be properly recognized."
+  private val UnsupportedOSMessage =
+    GoGoANoGoMessage + "\n\n" +
+    "Unfortunately, NetLogo cannot automatically install the GoGo board drivers on this operating system.\n\n" +
+    "For further instructions on how to install your GoGo board, please see the `netlogolab.html` document," +
+    "which can be found in your NetLogo installation's `docs` folder, or online at http://ccl.northwestern.edu/netlogo/docs/netlogolab.html," +
+    "and view the \"Windows XP\" bulletpoint in the \"Installing and testing the GoGo Extension\" -> \"Windows\" section."
 
   def run(em: ExtensionManager) {
     val baseDirPath = new File(this.getClass.getProtectionDomain.getCodeSource.getLocation.getFile).getParent
@@ -31,7 +37,7 @@ object GoGoWindowsHandler {
   }
 
   private def verifyDriverValidity(baseDirPath: String, fileSep: String, extensionManager: ExtensionManager) {
-    if (deviceNeedsInstallation) {
+    if (deviceNeedsInstallation && canInstall) {
       if (obtainPermissionToInstall(extensionManager)) {
         try {
           val subarch = System.getenv.get("PROCESSOR_ARCHITEW6432")
@@ -74,12 +80,28 @@ object GoGoWindowsHandler {
     }
   }
 
+  private def canInstall: Boolean = {
+    val osName = System.getProperty("os.name")
+    if (osName.contains("Windows 7") || osName.contains("Windows Vista"))
+      true
+    else {
+      if (AbstractWorkspace.isApp) {
+        val result = OptionDialog.show(App.app.frame, "User Message", UnsupportedOSMessage, Array(I18N.gui.get("common.buttons.ok"), StopBotheringMeString))
+        if (result == 1) {
+          val prefs = Preferences.userRoot.node(NetLogoPrefNodeName)
+          prefs.putBoolean(AskAboutGoGoDriversKey, false)
+        }
+      }
+      false
+    }
+  }
+
   private def obtainPermissionToInstall(extensionManager: ExtensionManager): Boolean = {
     try
       AbstractWorkspace.isApp && {
         val parent = App.app.frame
         val result = OptionDialog.show(parent, "User Message", WindowsPromptMessage,
-          Array(I18N.gui.get("common.buttons.ok"), HaltForeverString, I18N.gui.get("common.buttons.halt")))
+          Array(I18N.gui.get("common.buttons.ok"), StopBotheringMeString, I18N.gui.get("common.buttons.halt")))
         if (result == 1) {
           val prefs = Preferences.userRoot.node(NetLogoPrefNodeName)
           prefs.putBoolean(AskAboutGoGoDriversKey, false)
