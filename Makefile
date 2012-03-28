@@ -30,16 +30,17 @@ endif
 SCALA_SRCS=$(wildcard src/*.scala)
 JAVA_SRCS=$(wildcard src/*.java)
 
-gogo.jar: $(SRCS) manifest.txt Makefile RXTXcomm.jar
+gogo.jar gogo.jar.pack.gz: $(SRCS) manifest.txt Makefile RXTXcomm.jar
 	mkdir -p classes
 	$(SCALA_HOME)/bin/scalac -deprecation -unchecked -encoding us-ascii -classpath $(NETLOGO_JAR) -d classes $(SCALA_SRCS) $(JAVA_SRCS)
 	$(JAVA_HOME)/bin/javac -g -deprecation -Xlint:all -Xlint:-serial -Xlint:-path -encoding us-ascii -source 1.5 -target 1.5 -classpath $(NETLOGO_JAR)$(COLON)$(SCALA_JAR)$(COLON)RXTXcomm.jar$(COLON)classes -d classes $(JAVA_SRCS)
 	jar cmf manifest.txt gogo.jar -C classes .
+	pack200 --modification-time=latest --effort=9 --strip-debug --no-keep-file-order --unknown-attribute=strip gogo.jar.pack.gz gogo.jar
 
 gogo.zip: gogo.jar
 	rm -rf gogo
 	mkdir gogo
-	cp -rp gogo.jar README.md Makefile src manifest.txt gogo
+	cp -rp gogo.jar gogo.jar.pack.gz README.md Makefile src manifest.txt gogo
 	zip -rv gogo.zip gogo
 	rm -rf gogo
 
