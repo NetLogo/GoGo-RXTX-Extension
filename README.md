@@ -8,11 +8,9 @@ This extension is pre-installed in NetLogo. For instructions on using it in your
 
 ## Building
 
-Use the NETLOGO environment variable to tell the Makefile which NetLogoLite.jar to compile against.  For example:
+Run the `bin/sbt` script to build the extension.
 
-    NETLOGO=/Applications/NetLogo\\\ 5.0 make
-
-If compilation succeeds, `gogo.jar` will be created.
+If the build succeeds, `gogo.jar` is created.
 
 ## How the Windows Installers Were Made
 

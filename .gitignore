@@ -1,5 +1,7 @@
+*~
+*.orig
 *.jar
-*.jar.pack.gz
-/classes
-/gogo.zip
+/project/
+/target/
 /lib
+/gogo.zip
