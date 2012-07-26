@@ -8,7 +8,7 @@ This extension is pre-installed in NetLogo. For instructions on using it in your
 
 ## Building
 
-Run the `bin/sbt` script to build the extension.
+Run `./sbt package` to build the extension.
 
 If the build succeeds, `gogo.jar` is created.
 
