@@ -38,6 +38,12 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("stop-burst-mode", new GoGoStopBurstMode());
     primManager.addPrimitive("burst-value", new GoGoSensorBurstValue());
     primManager.addPrimitive("sensor", new GoGoSensor());
+	primManager.addPrimitive("msensor", new ModSensor());
+	
+	//Debug code
+    primManager.addPrimitive("send", new GoGoSendByte());
+    primManager.addPrimitive("debug", new GoGoDebug());
+    primManager.addPrimitive("clear", new GoGoDebugClear());
     //primManager.addPrimitive( "switch", new GoGoSwitch() ) ;
   }
 
@@ -120,8 +126,12 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       }
 
       try {
-        if (!controller.ping()) {
-          throw new ExtensionException("GoGo board not responding.");
+		controller.writeCommand(new byte[]{(byte)0x00});
+		if (!controller.waitForReplyHeader()) {
+          throw new ExtensionException("GoGo board not responding: No reply header.");
+        }
+        if (!controller.waitForByte((byte)0xAA)) {
+          throw new ExtensionException("GoGo board not responding: No ack byte.");
         }
       } catch (RuntimeException e) {
         throw new ExtensionException("GoGo board not responding: " + e.getLocalizedMessage());
@@ -444,6 +454,62 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       } catch (RuntimeException e) {
         return Double.valueOf(0);
       }
+    }
+  }
+  
+  //A sensor on the GoGo Sense independent board
+  public static class ModSensor extends DefaultReporter {
+    public Syntax getSyntax() {
+      int[] right = {Syntax.NumberType()}; //This primitive takes one number to its right, e.g. msensor 372
+      return Syntax.reporterSyntax(right, Syntax.NumberType()); //And returns a NumberType as well - the sensor value.
+    }
+
+    public Object report(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+
+      int sensor = args[0].getIntValue(); //Get the sensor number passed in
+      try {
+        return Double.valueOf(controller.readModSensor(sensor));
+      } catch (RuntimeException e) {
+        return Double.valueOf(0); //If can't read the sensor value, return 0.
+      }
+    }
+  }
+
+  
+  
+  
+  //Debugging code
+  //Shows the debug text from the GoGo Controller.
+  public static class GoGoDebug extends DefaultReporter {
+    public Object report(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+	  if (controller.debugText==null)
+		return "NULL";
+      return controller.debugText;
+    }
+  }
+
+  //Clears the debug text
+  public static class GoGoDebugClear extends DefaultCommand {
+    public void perform(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+      controller.debugText=""; //clear text
+    }
+  }
+  
+  //Sends two header bytes and a command byte to the GoGo Board.
+  public static class GoGoSendByte extends DefaultCommand {
+    public Syntax getSyntax() {
+	  //Takes a single argument (the command byte) to the right
+	  //e.g. gogo:send 20
+      int[] right = {Syntax.NumberType()};
+      return Syntax.commandSyntax(right);
+    }
+	
+    public void perform(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+      controller.send(args[0].getIntValue()); //Send integer
     }
   }
 

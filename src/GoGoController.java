@@ -23,6 +23,9 @@ public class GoGoController {
 
   // current burst mode
   public int burstModeMask = 0;
+  
+  //Text to be passed to gogo:debug
+  public String debugText;
 
   public static final byte IN_HEADER1 = (byte) 0x55;
   public static final byte IN_HEADER2 = (byte) 0xFF;
@@ -32,6 +35,7 @@ public class GoGoController {
 
   public static final byte CMD_PING = (byte) 0x00;
   public static final byte CMD_READ_SENSOR = (byte) 0x20;
+  public static final byte CMD_READ_MOD_SENSOR = (byte) 0xE0;
   public static final byte CMD_OUTPUT_PORT_ON = (byte) 0x40;
   public static final byte CMD_OUTPUT_PORT_OFF = (byte) 0x44;
   public static final byte CMD_OUTPUT_PORT_RD = (byte) 0x48;
@@ -109,6 +113,7 @@ public class GoGoController {
 
 
   public GoGoController(String portName) {
+	debugText="";
     this.portName = portName;
   }
 
@@ -256,8 +261,6 @@ public class GoGoController {
     }
     return (byte) b;
     //System.out.println( "Read: " + b ) ;
-
-
   }
 
   public byte peekByte()
@@ -295,8 +298,10 @@ public class GoGoController {
       for (int i = 0; i < 256; i++) {
         synchronized (inputStream) {
           b = readByte();
+		  debugText+="RH1_"+Integer.toHexString((int)b&0xFF)+"   ";
           if (b == IN_HEADER1) {
             b = readByte();
+			debugText+="RH2_"+Integer.toHexString((int)b&0xFF)+"   ";
             if (b == IN_HEADER2) return true;
           }
         }
@@ -304,6 +309,7 @@ public class GoGoController {
     } catch (IOException e) {
       e.printStackTrace();
     }
+	debugText+="waitForReplyHeader failed.";
     return false;
   }
 
@@ -313,6 +319,7 @@ public class GoGoController {
       for (int i = 0; i < 256; i++) {
         synchronized (inputStream) {
           b = readByte();
+		  debugText+="WB_"+Integer.toHexString((int)b&0xFF)+"   ";
           if (b == target) {
             return true;
           }
@@ -321,6 +328,7 @@ public class GoGoController {
     } catch (IOException e) {
       e.printStackTrace();
     }
+	debugText+="waitForByte failed.";
     return false;
   }
 
@@ -388,6 +396,34 @@ public class GoGoController {
   public int readSensorMax(int sensor) {
     return _readSensor(sensor, SENSOR_READ_MAX);
   }
+
+  
+  //Reads a sensor from the independent GoGoSense board.
+  public int readModSensor(int sensor) {
+    int sensorVal = 0;
+	
+	//Break sensor value into bytes to send to board
+	byte highByte = (byte)(sensor>>8);
+	byte lowByte = (byte)(sensor&0xFF);
+	
+	//Create command string
+	byte[] command = {CMD_READ_MOD_SENSOR, highByte, lowByte};
+	
+	//Send command
+	try {
+	  writeCommand(command);
+	  synchronized (inputStream) { //Seize input stream to prevent simultaneous reads
+	    waitForReplyHeader();
+		sensorVal = readInt() << 8;
+		sensorVal += readInt();
+	  }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    return sensorVal;
+  }
+
 
 
   public void talkToOutputPorts(int outputPortMask) {
@@ -539,6 +575,14 @@ public class GoGoController {
         }
       }
     }
+  }
+  
+  
+  
+  //Debug code: sends 2 header bytes and one command byte specified as an integer
+  public void send(int command) {
+    writeCommand(new byte[]{(byte)command});
+	waitForByte((byte)0xAF); //Kludgy way to send reply to debugText
   }
 
 
