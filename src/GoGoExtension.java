@@ -122,6 +122,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       try {
         if (!controller.ping()) {
           throw new ExtensionException("GoGo board not responding.");
+        }
       } catch (RuntimeException e) {
         throw new ExtensionException("GoGo board not responding: " + e.getLocalizedMessage());
       }
