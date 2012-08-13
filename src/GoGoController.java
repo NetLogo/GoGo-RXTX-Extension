@@ -32,7 +32,7 @@ public class GoGoController {
 
   public static final byte CMD_PING = (byte) 0x00;
   public static final byte CMD_READ_SENSOR = (byte) 0x20;
-  public static final byte CMD_READ_MOD_SENSOR = (byte) 0xE0;
+  public static final byte CMD_READ_EXTENDED_SENSOR = (byte) 0xE0;
   public static final byte CMD_OUTPUT_PORT_ON = (byte) 0x40;
   public static final byte CMD_OUTPUT_PORT_OFF = (byte) 0x44;
   public static final byte CMD_OUTPUT_PORT_RD = (byte) 0x48;
@@ -355,8 +355,10 @@ public class GoGoController {
   public int _readSensor(int sensor, int mode) {
     int sensorVal = 0;
 
-    if ((sensor < 1) || (sensor > 8))
+    if (sensor < 1)
       throw new RuntimeException("Sensor number out of range: " + sensor);
+    if (sensor > 8)
+      return readExtendedSensor(sensor);
 
     int b = CMD_READ_SENSOR | ((sensor - 1) << 2) | mode;
 
@@ -389,16 +391,20 @@ public class GoGoController {
   }
 
   
-  //Reads a sensor from the independent GoGoSense board.
-  public int readModSensor(int sensor) {
+  //Reads a sensor with number >8.
+  //Such sensors use a different serial format.
+  public int readExtendedSensor(int sensor) {
     int sensorVal = 0;
+    
+    //Turn sensor number (9+) into 0+
+    sensor=sensor-9;
     
     //Break sensor value into bytes to send to board
     byte highByte = (byte) (sensor >> 8);
     byte lowByte = (byte) (sensor & 0xFF);
     
     //Create command string
-    byte[] command = { CMD_READ_MOD_SENSOR, highByte, lowByte };
+    byte[] command = { CMD_READ_EXTENDED_SENSOR, highByte, lowByte };
     
     //Send command
     try {
