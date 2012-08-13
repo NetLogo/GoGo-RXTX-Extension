@@ -446,6 +446,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       }
     }
   }
+  
 
   @Override
   public java.util.List<String> additionalJars() {
