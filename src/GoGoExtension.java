@@ -38,8 +38,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("stop-burst-mode", new GoGoStopBurstMode());
     primManager.addPrimitive("burst-value", new GoGoSensorBurstValue());
     primManager.addPrimitive("sensor", new GoGoSensor());
-    primManager.addPrimitive("msensor", new ModSensor());
-    
     //primManager.addPrimitive( "switch", new GoGoSwitch() ) ;
   }
 
@@ -448,25 +446,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
   
-  //A sensor on the GoGo Sense independent board
-  public static class ModSensor extends DefaultReporter {
-    public Syntax getSyntax() {
-      int[] right = {Syntax.NumberType()}; //This primitive takes one number to its right, e.g. msensor 372
-      return Syntax.reporterSyntax(right, Syntax.NumberType()); //And returns a NumberType as well - the sensor value.
-    }
-
-    public Object report(Argument args[], Context context)
-        throws ExtensionException, org.nlogo.api.LogoException {
-
-      int sensor = args[0].getIntValue(); //Get the sensor number passed in
-      try {
-        return Double.valueOf(controller.readModSensor(sensor));
-      } catch (RuntimeException e) {
-        return Double.valueOf(0); //If can't read the sensor value, return 0.
-      }
-    }
-  }
-
 
   @Override
   public java.util.List<String> additionalJars() {
