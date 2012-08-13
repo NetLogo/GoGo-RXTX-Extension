@@ -397,7 +397,7 @@ public class GoGoController {
     int sensorVal = 0;
     
     //Turn sensor number (9+) into 0+
-    sensor=sensor-9;
+    sensor = sensor - 9;
     
     //Break sensor value into bytes to send to board
     byte highByte = (byte) (sensor >> 8);
