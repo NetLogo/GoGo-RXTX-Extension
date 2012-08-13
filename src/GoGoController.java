@@ -7,7 +7,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
 
-// Use the full replacement RXTX which has it's own package space
+// Use the full replacement RXTX which has its own package space
 // and doesn't need to Sun javax.comm jar
 import gnu.io.*;
 
@@ -32,6 +32,7 @@ public class GoGoController {
 
   public static final byte CMD_PING = (byte) 0x00;
   public static final byte CMD_READ_SENSOR = (byte) 0x20;
+  public static final byte CMD_READ_EXTENDED_SENSOR = (byte) 0xE0;
   public static final byte CMD_OUTPUT_PORT_ON = (byte) 0x40;
   public static final byte CMD_OUTPUT_PORT_OFF = (byte) 0x44;
   public static final byte CMD_OUTPUT_PORT_RD = (byte) 0x48;
@@ -256,8 +257,6 @@ public class GoGoController {
     }
     return (byte) b;
     //System.out.println( "Read: " + b ) ;
-
-
   }
 
   public byte peekByte()
@@ -341,7 +340,7 @@ public class GoGoController {
     if (port == null) {
       return false;
     }
-    writeCommand(new byte[]{CMD_PING});
+    writeCommand(new byte[]{ CMD_PING });
     return waitForAck();
   }
 
@@ -349,20 +348,22 @@ public class GoGoController {
     if (port == null) {
       return false;
     }
-    writeCommand(new byte[]{CMD_BEEP, (byte) 0x00});
+    writeCommand(new byte[]{ CMD_BEEP, (byte) 0x00 });
     return waitForAck();
   }
 
   public int _readSensor(int sensor, int mode) {
     int sensorVal = 0;
 
-    if ((sensor < 1) || (sensor > 8))
+    if (sensor < 1)
       throw new RuntimeException("Sensor number out of range: " + sensor);
+    if (sensor > 8)
+      return readExtendedSensor(sensor);
 
     int b = CMD_READ_SENSOR | ((sensor - 1) << 2) | mode;
 
     try {
-      writeCommand(new byte[]{(byte) b});
+      writeCommand(new byte[]{ (byte) b });
       synchronized (inputStream) {
         waitForReplyHeader();
         sensorVal = readInt() << 8;
@@ -389,10 +390,42 @@ public class GoGoController {
     return _readSensor(sensor, SENSOR_READ_MAX);
   }
 
+  
+  //Reads a sensor with number >8.
+  //Such sensors use a different serial format.
+  public int readExtendedSensor(int sensor) {
+    int sensorVal = 0;
+    
+    //Turn sensor number (9+) into 0+
+    sensor = sensor - 9;
+    
+    //Break sensor value into bytes to send to board
+    byte highByte = (byte) (sensor >> 8);
+    byte lowByte = (byte) (sensor & 0xFF);
+    
+    //Create command string
+    byte[] command = { CMD_READ_EXTENDED_SENSOR, highByte, lowByte };
+    
+    //Send command
+    try {
+      writeCommand(command);
+      synchronized (inputStream) { //Seize input stream to prevent simultaneous reads
+        waitForReplyHeader();
+        sensorVal = readInt() << 8;
+        sensorVal += readInt();
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    return sensorVal;
+  }
+
+
 
   public void talkToOutputPorts(int outputPortMask) {
-    writeCommand(new byte[]{CMD_TALK_TO_OUTPUT_PORT,
-        (byte) outputPortMask});
+    writeCommand(new byte[]{ CMD_TALK_TO_OUTPUT_PORT,
+        (byte) outputPortMask });
     waitForAck();
   }
 
@@ -402,8 +435,8 @@ public class GoGoController {
   }
 
   public void setBurstMode(int sensorMask, int speed) {
-    writeCommand(new byte[]{((byte) (CMD_SET_BURST_MODE | (byte) speed)),
-        (byte) sensorMask});
+    writeCommand(new byte[]{ ((byte) (CMD_SET_BURST_MODE | (byte) speed)),
+        (byte) sensorMask} );
     waitForAck();
     burstModeMask = sensorMask;
   }
@@ -457,7 +490,7 @@ public class GoGoController {
   }
 
   public void outputPortControl(byte cmd) {
-    writeCommand(new byte[]{cmd});
+    writeCommand(new byte[]{ cmd });
     waitForAck();
   }
 
@@ -492,7 +525,7 @@ public class GoGoController {
 
     int comm = CMD_OUTPUT_PORT_POWER | level << 2;
 
-    writeCommand(new byte[]{(byte) comm});
+    writeCommand(new byte[]{ (byte) comm });
 
     waitForAck();
   }
@@ -540,7 +573,9 @@ public class GoGoController {
       }
     }
   }
-
+  
+  
+  
 
   // main for GoGoController class, which functions as a small utility
 
