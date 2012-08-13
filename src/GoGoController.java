@@ -340,7 +340,7 @@ public class GoGoController {
     if (port == null) {
       return false;
     }
-    writeCommand(new byte[]{CMD_PING});
+    writeCommand(new byte[]{ CMD_PING });
     return waitForAck();
   }
 
@@ -348,7 +348,7 @@ public class GoGoController {
     if (port == null) {
       return false;
     }
-    writeCommand(new byte[]{CMD_BEEP, (byte) 0x00});
+    writeCommand(new byte[]{ CMD_BEEP, (byte) 0x00 });
     return waitForAck();
   }
 
@@ -361,7 +361,7 @@ public class GoGoController {
     int b = CMD_READ_SENSOR | ((sensor - 1) << 2) | mode;
 
     try {
-      writeCommand(new byte[]{(byte) b});
+      writeCommand(new byte[]{ (byte) b });
       synchronized (inputStream) {
         waitForReplyHeader();
         sensorVal = readInt() << 8;
@@ -398,7 +398,7 @@ public class GoGoController {
     byte lowByte = (byte) (sensor & 0xFF);
     
     //Create command string
-    byte[] command = {CMD_READ_MOD_SENSOR, highByte, lowByte};
+    byte[] command = { CMD_READ_MOD_SENSOR, highByte, lowByte };
     
     //Send command
     try {
@@ -418,8 +418,8 @@ public class GoGoController {
 
 
   public void talkToOutputPorts(int outputPortMask) {
-    writeCommand(new byte[]{CMD_TALK_TO_OUTPUT_PORT,
-        (byte) outputPortMask});
+    writeCommand(new byte[]{ CMD_TALK_TO_OUTPUT_PORT,
+        (byte) outputPortMask });
     waitForAck();
   }
 
@@ -429,8 +429,8 @@ public class GoGoController {
   }
 
   public void setBurstMode(int sensorMask, int speed) {
-    writeCommand(new byte[]{((byte) (CMD_SET_BURST_MODE | (byte) speed)),
-        (byte) sensorMask});
+    writeCommand(new byte[]{ ((byte) (CMD_SET_BURST_MODE | (byte) speed)),
+        (byte) sensorMask} );
     waitForAck();
     burstModeMask = sensorMask;
   }
@@ -484,7 +484,7 @@ public class GoGoController {
   }
 
   public void outputPortControl(byte cmd) {
-    writeCommand(new byte[]{cmd});
+    writeCommand(new byte[]{ cmd });
     waitForAck();
   }
 
@@ -519,7 +519,7 @@ public class GoGoController {
 
     int comm = CMD_OUTPUT_PORT_POWER | level << 2;
 
-    writeCommand(new byte[]{(byte) comm});
+    writeCommand(new byte[]{ (byte) comm });
 
     waitForAck();
   }
