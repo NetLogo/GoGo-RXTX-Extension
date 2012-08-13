@@ -7,7 +7,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
 
-// Use the full replacement RXTX which has it's own package space
+// Use the full replacement RXTX which has its own package space
 // and doesn't need to Sun javax.comm jar
 import gnu.io.*;
 
@@ -23,9 +23,6 @@ public class GoGoController {
 
   // current burst mode
   public int burstModeMask = 0;
-  
-  //Text to be passed to gogo:debug
-  public String debugText;
 
   public static final byte IN_HEADER1 = (byte) 0x55;
   public static final byte IN_HEADER2 = (byte) 0xFF;
@@ -113,7 +110,6 @@ public class GoGoController {
 
 
   public GoGoController(String portName) {
-	debugText="";
     this.portName = portName;
   }
 
@@ -298,10 +294,8 @@ public class GoGoController {
       for (int i = 0; i < 256; i++) {
         synchronized (inputStream) {
           b = readByte();
-		  debugText+="RH1_"+Integer.toHexString((int)b&0xFF)+"   ";
           if (b == IN_HEADER1) {
             b = readByte();
-			debugText+="RH2_"+Integer.toHexString((int)b&0xFF)+"   ";
             if (b == IN_HEADER2) return true;
           }
         }
@@ -309,7 +303,6 @@ public class GoGoController {
     } catch (IOException e) {
       e.printStackTrace();
     }
-	debugText+="waitForReplyHeader failed.";
     return false;
   }
 
@@ -319,7 +312,6 @@ public class GoGoController {
       for (int i = 0; i < 256; i++) {
         synchronized (inputStream) {
           b = readByte();
-		  debugText+="WB_"+Integer.toHexString((int)b&0xFF)+"   ";
           if (b == target) {
             return true;
           }
@@ -328,7 +320,6 @@ public class GoGoController {
     } catch (IOException e) {
       e.printStackTrace();
     }
-	debugText+="waitForByte failed.";
     return false;
   }
 
@@ -401,22 +392,22 @@ public class GoGoController {
   //Reads a sensor from the independent GoGoSense board.
   public int readModSensor(int sensor) {
     int sensorVal = 0;
-	
-	//Break sensor value into bytes to send to board
-	byte highByte = (byte)(sensor>>8);
-	byte lowByte = (byte)(sensor&0xFF);
-	
-	//Create command string
-	byte[] command = {CMD_READ_MOD_SENSOR, highByte, lowByte};
-	
-	//Send command
-	try {
-	  writeCommand(command);
-	  synchronized (inputStream) { //Seize input stream to prevent simultaneous reads
-	    waitForReplyHeader();
-		sensorVal = readInt() << 8;
-		sensorVal += readInt();
-	  }
+    
+    //Break sensor value into bytes to send to board
+    byte highByte = (byte) (sensor >> 8);
+    byte lowByte = (byte) (sensor & 0xFF);
+    
+    //Create command string
+    byte[] command = {CMD_READ_MOD_SENSOR, highByte, lowByte};
+    
+    //Send command
+    try {
+      writeCommand(command);
+      synchronized (inputStream) { //Seize input stream to prevent simultaneous reads
+        waitForReplyHeader();
+        sensorVal = readInt() << 8;
+        sensorVal += readInt();
+      }
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -579,12 +570,6 @@ public class GoGoController {
   
   
   
-  //Debug code: sends 2 header bytes and one command byte specified as an integer
-  public void send(int command) {
-    writeCommand(new byte[]{(byte)command});
-	waitForByte((byte)0xAF); //Kludgy way to send reply to debugText
-  }
-
 
   // main for GoGoController class, which functions as a small utility
 

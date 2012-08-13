@@ -38,12 +38,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("stop-burst-mode", new GoGoStopBurstMode());
     primManager.addPrimitive("burst-value", new GoGoSensorBurstValue());
     primManager.addPrimitive("sensor", new GoGoSensor());
-	primManager.addPrimitive("msensor", new ModSensor());
-	
-	//Debug code
-    primManager.addPrimitive("send", new GoGoSendByte());
-    primManager.addPrimitive("debug", new GoGoDebug());
-    primManager.addPrimitive("clear", new GoGoDebugClear());
+    primManager.addPrimitive("msensor", new ModSensor());
+    
     //primManager.addPrimitive( "switch", new GoGoSwitch() ) ;
   }
 
@@ -126,13 +122,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       }
 
       try {
-		controller.writeCommand(new byte[]{(byte)0x00});
-		if (!controller.waitForReplyHeader()) {
-          throw new ExtensionException("GoGo board not responding: No reply header.");
-        }
-        if (!controller.waitForByte((byte)0xAA)) {
-          throw new ExtensionException("GoGo board not responding: No ack byte.");
-        }
+        if (!controller.ping()) {
+          throw new ExtensionException("GoGo board not responding.");
       } catch (RuntimeException e) {
         throw new ExtensionException("GoGo board not responding: " + e.getLocalizedMessage());
       }
@@ -476,42 +467,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
 
-  
-  
-  
-  //Debugging code
-  //Shows the debug text from the GoGo Controller.
-  public static class GoGoDebug extends DefaultReporter {
-    public Object report(Argument args[], Context context)
-        throws ExtensionException, org.nlogo.api.LogoException {
-	  if (controller.debugText==null)
-		return "NULL";
-      return controller.debugText;
-    }
-  }
-
-  //Clears the debug text
-  public static class GoGoDebugClear extends DefaultCommand {
-    public void perform(Argument args[], Context context)
-        throws ExtensionException, org.nlogo.api.LogoException {
-      controller.debugText=""; //clear text
-    }
-  }
-  
-  //Sends two header bytes and a command byte to the GoGo Board.
-  public static class GoGoSendByte extends DefaultCommand {
-    public Syntax getSyntax() {
-	  //Takes a single argument (the command byte) to the right
-	  //e.g. gogo:send 20
-      int[] right = {Syntax.NumberType()};
-      return Syntax.commandSyntax(right);
-    }
-	
-    public void perform(Argument args[], Context context)
-        throws ExtensionException, org.nlogo.api.LogoException {
-      controller.send(args[0].getIntValue()); //Send integer
-    }
-  }
 
   @Override
   public java.util.List<String> additionalJars() {
