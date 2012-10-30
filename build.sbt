@@ -1,4 +1,4 @@
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0-RC1"
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
 
@@ -12,8 +12,8 @@ javacOptions ++= Seq("-g", "-deprecation", "-Xlint:all", "-Xlint:-serial", "-Xli
                      "-source", "1.5", "-target", "1.5")
 
 libraryDependencies ++= Seq(
-  "org.nlogo" % "NetLogo" % "5.0.1" from
-    "http://ccl.northwestern.edu/netlogo/5.0.1/NetLogo.jar",
+  "org.nlogo" % "NetLogo" % "5.x-4a1059ab" from
+    "http://ccl.northwestern.edu/devel/NetLogo-4a1059ab.jar",
   "rxtx" % "rxtx" % "2.2pre2" from
     "http://ccl.northwestern.edu/devel/rxtx-2.2pre2-bins/RXTXcomm.jar"
 )

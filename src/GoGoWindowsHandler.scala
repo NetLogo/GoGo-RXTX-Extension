@@ -74,7 +74,7 @@ object GoGoWindowsHandler {
     try
       file.listFiles exists { f => f.isDirectory && f.getName.contains(GoGoDriverEvidenceName) }
     catch {
-      case e =>
+      case e: Throwable =>
         System.err.println("Could not find path " + file.getAbsolutePath + "  See: " + e.getMessage)
         false
     }
@@ -109,7 +109,7 @@ object GoGoWindowsHandler {
         result == 0
       }
     catch {
-      case e =>
+      case e: Throwable =>
         System.err.println("Could not obtain permission to install Windows driver fix: " + e.getMessage)
         false
     }
