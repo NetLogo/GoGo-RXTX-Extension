@@ -94,7 +94,7 @@ public class GoGoController {
   }
 
   public static CommPortIdentifier findPortByName(String portName) {
-    Enumeration portList = CommPortIdentifier.getPortIdentifiers();
+    Enumeration<?> portList = CommPortIdentifier.getPortIdentifiers();
     CommPortIdentifier id;
 
     while (portList.hasMoreElements()) {
@@ -122,7 +122,7 @@ public class GoGoController {
   }
 
   public static List<String> listPorts(boolean onlyAvailable) {
-    Enumeration portList;
+    Enumeration<?> portList;
     CommPortIdentifier portId;
     List<String> portNames = new ArrayList<String>();
 

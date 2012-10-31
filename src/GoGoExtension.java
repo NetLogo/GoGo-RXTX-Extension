@@ -59,9 +59,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       ClassLoader classLoader = this.getClass().getClassLoader();
       java.lang.reflect.Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
       field.setAccessible(true);
-      java.util.Vector libs = (java.util.Vector) field.get(classLoader);
+      java.util.Vector<?> libs = (java.util.Vector<?>) field.get(classLoader);
       for (Object o : libs) {
-        java.lang.reflect.Method finalize = o.getClass().getDeclaredMethod("finalize", new Class[0]);
+        java.lang.reflect.Method finalize = o.getClass().getDeclaredMethod("finalize", new Class<?>[0]);
         finalize.setAccessible(true);
         finalize.invoke(o);
       }
@@ -292,7 +292,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         throws ExtensionException, org.nlogo.api.LogoException {
       ensureGoGoPort();
 
-      java.util.Iterator iter = args[0].getList().iterator();
+      java.util.Iterator<?> iter = args[0].getList().iterator();
       int outputPortMask = 0;
 
       while (iter.hasNext()) {
@@ -355,9 +355,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
   }
 
 
-  static private int sensorMask(java.util.AbstractSequentialList sensorList) {
+  static private int sensorMask(java.util.AbstractSequentialList<?> sensorList) {
     int sensorMask = 0;
-    java.util.Iterator iter = null;
+    java.util.Iterator<?> iter = null;
 
     if (sensorList != null) {
       iter = sensorList.iterator();
