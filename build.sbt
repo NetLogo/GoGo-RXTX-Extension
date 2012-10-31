@@ -17,7 +17,8 @@ libraryDependencies ++= Seq(
   "org.nlogo" % "NetLogoHeadless" % "5.x-8568f6f4" from
     "http://ccl.northwestern.edu/devel/NetLogoHeadless-8568f6f4.jar",
   "rxtx" % "rxtx" % "2.2pre2" from
-    "http://ccl.northwestern.edu/devel/rxtx-2.2pre2-bins/RXTXcomm.jar"
+    "http://ccl.northwestern.edu/devel/rxtx-2.2pre2-bins/RXTXcomm.jar",
+  "org.picocontainer" % "picocontainer" % "2.13.6"
 )
 
 artifactName := { (_, _, _) => "gogo.jar" }
