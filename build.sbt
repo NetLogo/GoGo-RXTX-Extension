@@ -1,4 +1,4 @@
-scalaVersion := "2.10.0-RC2"
+scalaVersion := "2.10.0"
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
 
@@ -59,7 +59,7 @@ packageBin in Compile <<= (packageBin in Compile, dependencyClasspath in Runtime
     if(Process("git diff --quiet --exit-code HEAD").! == 0) {
       Process("git archive -o gogo.zip --prefix=gogo/ HEAD").!!
       IO.createDirectory(base / "gogo")
-      val zipExtras = 
+      val zipExtras =
         (libraryJarPaths.map(_.getName) :+ "gogo.jar")
       for(extra <- zipExtras)
         IO.copyFile(base / extra, base / "gogo" / extra)
