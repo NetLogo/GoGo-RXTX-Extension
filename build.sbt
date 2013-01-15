@@ -4,7 +4,7 @@ scalaSource in Compile <<= baseDirectory(_ / "src")
 
 javaSource in Compile <<= baseDirectory(_ / "src")
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-Xfatal-warnings",
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-Xlint", "-Xfatal-warnings",
                       "-encoding", "us-ascii")
 
 javacOptions ++= Seq("-g", "-deprecation", "-Xlint:all", "-Xlint:-serial", "-Xlint:-path",
