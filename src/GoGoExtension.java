@@ -39,6 +39,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("burst-value", new GoGoSensorBurstValue());
     primManager.addPrimitive("sensor", new GoGoSensor());
     //primManager.addPrimitive( "switch", new GoGoSwitch() ) ;
+    primManager.addPrimitive("beep", new GoGoBeep() );
+    primManager.addPrimitive("led-on", new GoGoLedOn() );
+    primManager.addPrimitive("led-off", new GoGoLedOff() );
   }
 
   public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
@@ -203,6 +206,42 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       controller.outputPortOn();
     }
   }
+  
+  public static class GoGoBeep extends DefaultCommand {
+	    public Syntax getSyntax() {
+	      return Syntax.commandSyntax();
+	    }
+
+	    public void perform(Argument args[], Context context)
+	        throws ExtensionException, org.nlogo.api.LogoException {
+	      ensureGoGoPort();
+	      controller.beep();
+	    }
+	  }
+  
+  public static class GoGoLedOn extends DefaultCommand {
+	    public Syntax getSyntax() {
+	      return Syntax.commandSyntax();
+	    }
+
+	    public void perform(Argument args[], Context context)
+	        throws ExtensionException, org.nlogo.api.LogoException {
+	      ensureGoGoPort();
+	      controller.led( true );
+	    }
+	  }
+  
+  public static class GoGoLedOff extends DefaultCommand {
+	    public Syntax getSyntax() {
+	      return Syntax.commandSyntax();
+	    }
+
+	    public void perform(Argument args[], Context context)
+	        throws ExtensionException, org.nlogo.api.LogoException {
+	      ensureGoGoPort();
+	      controller.led( false );
+	    }
+	  }
 
   public static class GoGoOutputPortOff extends DefaultCommand {
     public Syntax getSyntax() {

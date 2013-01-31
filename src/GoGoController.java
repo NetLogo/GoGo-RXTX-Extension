@@ -297,6 +297,10 @@ public class GoGoController {
           if (b == IN_HEADER1) {
             b = readByte();
             if (b == IN_HEADER2) return true;
+          } 
+          else 
+          {
+        	  if (b == IN_HEADER2) { return true;  }
           }
         }
       }
@@ -350,6 +354,16 @@ public class GoGoController {
     }
     writeCommand(new byte[]{ CMD_BEEP, (byte) 0x00 });
     return waitForAck();
+  }
+  
+  public boolean led( boolean on ) {
+	  if (port == null) {
+	      return false;
+	    }
+	    byte cmd = CMD_LED_OFF;
+	    if (on) { cmd = CMD_LED_ON; }
+	    writeCommand(new byte[]{ cmd, (byte) 0x00 });
+	    return waitForAck();
   }
 
   public int _readSensor(int sensor, int mode) {
