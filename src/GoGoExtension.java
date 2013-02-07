@@ -42,6 +42,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("beep", new GoGoBeep() );
     primManager.addPrimitive("led-on", new GoGoLedOn() );
     primManager.addPrimitive("led-off", new GoGoLedOff() );
+
+	primManager.addPrimitive("set-servo", new GoGoSetServo() );
+
   }
 
   public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
@@ -218,6 +221,23 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 	      controller.beep();
 	    }
 	  }
+	
+	
+   public static class GoGoSetServo extends DefaultCommand {
+		    public Syntax getSyntax() {
+			  int[] posParam = {Syntax.NumberType()};
+		      return Syntax.commandSyntax(posParam);
+		    }
+
+		    public void perform(Argument args[], Context context)
+		        throws ExtensionException, org.nlogo.api.LogoException {
+		      ensureGoGoPort();
+			  int val = args[0].getIntValue();
+			//  if (val > 40 ) { val = 40; }
+			//  else if ( val < 20 ) { val = 20; }
+		      controller.setServoPosition( val );
+		    }
+		  }
   
   public static class GoGoLedOn extends DefaultCommand {
 	    public Syntax getSyntax() {

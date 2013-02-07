@@ -43,6 +43,10 @@ public class GoGoController {
   public static final byte CMD_TALK_TO_OUTPUT_PORT = (byte) 0x80;
   public static final byte CMD_SET_BURST_MODE = (byte) 0xA0;
 
+  public static final byte CMD_PWM_SERVO = (byte) 0xC8;
+  
+  
+
   public static final byte CMD_LED_ON = (byte) 0xC0;
   public static final byte CMD_LED_OFF = (byte) 0xC1;
   public static final byte CMD_BEEP = (byte) 0xC4;
@@ -543,6 +547,17 @@ public class GoGoController {
 
     waitForAck();
   }
+
+  //added for servo
+  public void setServoPosition(int val) {
+	if ( (val < 20) || (val > 40 ) )
+		throw new RuntimeException(
+	          "Requested servo position (" + val + ") is out of safe range (20-40): ");
+	
+	writeCommand(new byte[]{CMD_PWM_SERVO,  (byte) val });
+    waitForAck();
+}
+
 
   public void serialEvent(SerialPortEvent event) {
 
