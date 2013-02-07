@@ -42,6 +42,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("beep", new GoGoBeep() );
     primManager.addPrimitive("led-on", new GoGoLedOn() );
     primManager.addPrimitive("led-off", new GoGoLedOff() );
+
+	primManager.addPrimitive("servo", new GoGoServo() );
+
   }
 
   public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
