@@ -1,5 +1,7 @@
 package org.nlogo.extensions.gogo;
 
+import org.nlogo.api.ExtensionException;
+
 import java.io.PushbackInputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -549,9 +551,9 @@ public class GoGoController {
   }
 
   //added for servo
-  public void setServoPosition(int val) {
+  public void setServoPosition(int val) throws ExtensionException {
 	if ( (val < 20) || (val > 40 ) )
-		throw new RuntimeException(
+		throw new ExtensionException(
 	          "Requested servo position (" + val + ") is out of safe range (20-40): ");
 	
 	writeCommand(new byte[]{CMD_PWM_SERVO,  (byte) val });
