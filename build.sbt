@@ -1,4 +1,4 @@
-scalaVersion := "2.10.0"
+scalaVersion := "2.9.2"
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
 
