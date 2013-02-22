@@ -33,7 +33,7 @@ object GoGoWindowsHandler {
   def run(verify: Boolean = true) {
     val baseDirPath = new File(this.getClass.getProtectionDomain.getCodeSource.getLocation.getFile).getParent
     val fileSep = System.getProperty("file.separator")
-    if (verify) verifyDriverValidity(baseDirPath, fileSep)
+    verifyDriverValidity(baseDirPath, fileSep, verify)
   }
 
   private def deviceNeedsInstallation: Boolean = {
