@@ -30,34 +30,10 @@ object GoGoWindowsHandler {
     "which can be found in your NetLogo installation's `docs` folder, or online at http://ccl.northwestern.edu/netlogo/docs/netlogolab.html," +
     "and view the \"Windows XP\" bulletpoint in the \"Installing and testing the GoGo Extension\" -> \"Windows\" section."
 
-  def run(em: ExtensionManager) {
+  def run(verify: Boolean = true) {
     val baseDirPath = new File(this.getClass.getProtectionDomain.getCodeSource.getLocation.getFile).getParent
     val fileSep = System.getProperty("file.separator")
-    verifyDriverValidity(baseDirPath, fileSep, em)
-  }
-
-  private def verifyDriverValidity(baseDirPath: String, fileSep: String, extensionManager: ExtensionManager) {
-    if (deviceNeedsInstallation && canInstall) {
-      if (obtainPermissionToInstall(extensionManager)) {
-        try {
-          val subarch = System.getenv.get("PROCESSOR_ARCHITEW6432")
-          val archBits =
-            if (System.getProperty("os.arch").endsWith("64") || ((subarch != null) && subarch.endsWith("64")))
-              64
-            else
-              32
-          val installerName = SerialInstallerName.format(archBits)
-          val builder =
-            new ProcessBuilder("cmd.exe", "/C",
-                               baseDirPath + fileSep + SerialInstallerPath + fileSep + installerName)
-          builder.start()
-        }
-        catch {
-          case e: java.io.IOException =>
-            System.err.println("Could not execute serial driver installer: " + e.getMessage)
-        }
-      }
-    }
+    if (verify) verifyDriverValidity(baseDirPath, fileSep)
   }
 
   private def deviceNeedsInstallation: Boolean = {
@@ -80,6 +56,31 @@ object GoGoWindowsHandler {
     }
   }
 
+  private def install(baseDirPath: String, fileSep: String) {
+    try {
+      val subarch = System.getenv.get("PROCESSOR_ARCHITEW6432")
+      val archBits =
+        if (System.getProperty("os.arch").endsWith("64") || ((subarch != null) && subarch.endsWith("64")))
+          64
+        else
+          32
+      val installerName = SerialInstallerName.format(archBits)
+      val builder =
+        new ProcessBuilder("cmd.exe", "/C",
+          baseDirPath + fileSep + SerialInstallerPath + fileSep + installerName)
+      builder.start()
+    }
+    catch {
+      case e: java.io.IOException =>
+        System.err.println("Could not execute serial driver installer: " + e.getMessage)
+    }
+  }
+
+  private def verifyDriverValidity(baseDirPath: String, fileSep: String, verify: Boolean = true) {
+    if ((deviceNeedsInstallation && canInstall && obtainPermissionToInstall()) || !verify)
+      install(baseDirPath, fileSep)
+  }
+
   private def canInstall: Boolean = {
     val osName = System.getProperty("os.name")
     if (osName.contains("Windows 7") || osName.contains("Windows Vista"))
@@ -96,7 +97,7 @@ object GoGoWindowsHandler {
     }
   }
 
-  private def obtainPermissionToInstall(extensionManager: ExtensionManager): Boolean = {
+  private def obtainPermissionToInstall() : Boolean = {
     try
       AbstractWorkspace.isApp && {
         val parent = App.app.frame

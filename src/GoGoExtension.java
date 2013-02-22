@@ -42,6 +42,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     primManager.addPrimitive("beep", new GoGoBeep() );
     primManager.addPrimitive("led-on", new GoGoLedOn() );
     primManager.addPrimitive("led-off", new GoGoLedOff() );
+    primManager.addPrimitive("install", new GoGoInstall());
 
 	primManager.addPrimitive("set-servo", new GoGoSetServo() );
 
@@ -49,8 +50,12 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
     em.addToLibraryPath(this, "lib");
+    runWindowsInstaller(true);
+  }
+
+  private static void runWindowsInstaller(boolean verify) {
     if (System.getProperty("os.name").startsWith("Windows")) {
-      GoGoWindowsHandler.run(em);
+      GoGoWindowsHandler.run(verify);
     }
   }
 
@@ -505,7 +510,19 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       }
     }
   }
-  
+
+  public static class GoGoInstall extends DefaultCommand {
+
+    public Syntax getSyntax() {
+      return Syntax.commandSyntax();
+    }
+
+    public void perform(Argument args[], Context context) throws ExtensionException, org.nlogo.api.LogoException {
+      runWindowsInstaller(false);
+    }
+
+  }
+
 
   @Override
   public java.util.List<String> additionalJars() {
