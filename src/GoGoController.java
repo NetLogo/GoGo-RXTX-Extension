@@ -12,6 +12,8 @@ import java.util.ArrayList;
 // Use the full replacement RXTX which has its own package space
 // and doesn't need to Sun javax.comm jar
 import gnu.io.*;
+//import jssc.Serial;
+import scala.actors.threadpool.Arrays;
 
 public class GoGoController {
   RXTXCommDriver driver;
@@ -128,7 +130,7 @@ public class GoGoController {
   }
 
   public static List<String> listPorts(boolean onlyAvailable) {
-    Enumeration<?> portList;
+/*    Enumeration<?> portList;
     CommPortIdentifier portId;
     List<String> portNames = new ArrayList<String>();
 
@@ -140,6 +142,14 @@ public class GoGoController {
         portNames.add(portId.getName());
       }
     }
+    */
+    String[] ports = jssc.SerialPortList.getPortNames();
+    System.err.println(ports.length);
+    ArrayList<String> portNames = new ArrayList<String>();
+    //for ( String pname : ports ) {
+    //  portNames.add( pname );
+   // }
+    portNames.addAll(Arrays.asList(ports));
     return portNames;
   }
 

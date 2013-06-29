@@ -2,25 +2,24 @@
 
 package org.nlogo.extensions.gogo;
 
+import jssc.SerialPort;
+import jssc.SerialPortException;
 import org.nlogo.api.Argument;
 import org.nlogo.api.Context;
 import org.nlogo.api.DefaultCommand;
 import org.nlogo.api.DefaultReporter;
 import org.nlogo.api.ExtensionException;
 import org.nlogo.api.ExtensionManager;
-import org.nlogo.api.I18N;
 import org.nlogo.api.LogoList;
 import org.nlogo.api.Syntax;
-import org.nlogo.app.App;
-import org.nlogo.app.AppFrame;
-import org.nlogo.swing.OptionDialog;
-import org.nlogo.workspace.AbstractWorkspace;
+
 
 public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
-  public static GoGoController controller;
+  public static org.nlogo.extensions.gogo.GoGoController controller;
 
   public void load(org.nlogo.api.PrimitiveManager primManager) {
+    primManager.addPrimitive("hi", new GoGoTestSSC());
     primManager.addPrimitive("ports", new GoGoListPorts());
     primManager.addPrimitive("open", new GoGoOpen());
     primManager.addPrimitive("open?", new GoGoOpenPredicate());
@@ -55,7 +54,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   private static void runWindowsInstaller(boolean verify) {
     if (System.getProperty("os.name").startsWith("Windows")) {
-      GoGoWindowsHandler.run(verify);
+      org.nlogo.extensions.gogo.GoGoWindowsHandler.run(verify);
     }
   }
 
@@ -101,7 +100,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
 
   public static void initController(String portName) {
-    controller = new GoGoController(portName);
+    controller = new org.nlogo.extensions.gogo.GoGoController(portName);
     // ping to clear out any queued up output
   }
 
@@ -156,6 +155,50 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
 
+  public static class GoGoTestSSC extends DefaultCommand {
+      public Syntax getSyntax() {
+        return Syntax.commandSyntax();
+      }
+
+      public void perform(Argument args[], Context context)
+          throws ExtensionException, org.nlogo.api.LogoException {
+        try {
+          testSSC();
+        } catch (Exception e) {
+          throw new ExtensionException("Test Failed: " +
+                                       controller.currentPortName() + " : " + e.getLocalizedMessage());
+        }
+      }
+    }
+
+
+  public static void testSSC() {
+
+    final byte CMD_BEEP = (byte) 0xC4;
+    final byte OUT_HEADER1 = (byte) 0x54;
+    final byte OUT_HEADER2 = (byte) 0xFE;
+    final byte CMD_READ_SENSOR = (byte) 0x20;
+
+    String[] names = jssc.SerialPortList.getPortNames();
+       jssc.SerialPort serialPort = new SerialPort(names[0]);
+       try {
+           System.out.println("Port opened: " + serialPort.openPort());
+           System.out.println("Params setted: " + serialPort.setParams(9600, 8, 1, 0));
+
+           serialPort.writeByte(OUT_HEADER1);
+           serialPort.writeByte(OUT_HEADER2);
+           serialPort.writeBytes(new byte[]{ CMD_BEEP, (byte) 0x00 });
+
+          // System.out.println("\"Hello World!!!\" successfully writen to port: " + serialPort.writeBytes("Hello World!!!".getBytes()));
+           System.out.println("Port closed: " + serialPort.closePort());
+       }
+       catch (SerialPortException ex){
+           System.out.println(ex);
+       }
+
+  }
+
+
   public static class GoGoListPorts extends DefaultReporter {
     public Syntax getSyntax() {
       return Syntax.reporterSyntax(Syntax.ListType());
@@ -164,7 +207,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     public Object report(Argument args[], Context context)
         throws ExtensionException, org.nlogo.api.LogoException {
       try {
-        return LogoList.fromJava(GoGoController.availablePorts());
+        return LogoList.fromJava(org.nlogo.extensions.gogo.GoGoController.availablePorts());
       } catch (java.lang.NoClassDefFoundError e) {
         throw new ExtensionException(
             "Could not initialize GoGo Extension.  Please ensure that you have installed RXTX correctly.  Full error message: " + e.getLocalizedMessage());
@@ -363,16 +406,16 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         Object val = iter.next();
         switch (val.toString().toLowerCase().charAt(0)) {
           case 'a':
-            outputPortMask = outputPortMask | GoGoController.OUTPUT_PORT_A;
+            outputPortMask = outputPortMask | org.nlogo.extensions.gogo.GoGoController.OUTPUT_PORT_A;
             break;
           case 'b':
-            outputPortMask = outputPortMask | GoGoController.OUTPUT_PORT_B;
+            outputPortMask = outputPortMask | org.nlogo.extensions.gogo.GoGoController.OUTPUT_PORT_B;
             break;
           case 'c':
-            outputPortMask = outputPortMask | GoGoController.OUTPUT_PORT_C;
+            outputPortMask = outputPortMask | org.nlogo.extensions.gogo.GoGoController.OUTPUT_PORT_C;
             break;
           case 'd':
-            outputPortMask = outputPortMask | GoGoController.OUTPUT_PORT_D;
+            outputPortMask = outputPortMask | org.nlogo.extensions.gogo.GoGoController.OUTPUT_PORT_D;
             break;
         }
       }
@@ -383,7 +426,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
   public static NLBurstCycleHandler burstCycleHandler = null;
 
   public static class NLBurstCycleHandler
-      implements GoGoController.BurstCycleHandler {
+      implements org.nlogo.extensions.gogo.GoGoController.BurstCycleHandler {
     public final int[] sensorValues = new int[8];
 
     synchronized public void handleBurstCycle(int sensor, int value) {
@@ -430,28 +473,28 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         Object val = iter.next();
         switch (val.toString().toLowerCase().charAt(0)) {
           case '1':
-            sensorMask = sensorMask | GoGoController.SENSOR_1;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_1;
             break;
           case '2':
-            sensorMask = sensorMask | GoGoController.SENSOR_2;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_2;
             break;
           case '3':
-            sensorMask = sensorMask | GoGoController.SENSOR_3;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_3;
             break;
           case '4':
-            sensorMask = sensorMask | GoGoController.SENSOR_4;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_4;
             break;
           case '5':
-            sensorMask = sensorMask | GoGoController.SENSOR_5;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_5;
             break;
           case '6':
-            sensorMask = sensorMask | GoGoController.SENSOR_6;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_6;
             break;
           case '7':
-            sensorMask = sensorMask | GoGoController.SENSOR_7;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_7;
             break;
           case '8':
-            sensorMask = sensorMask | GoGoController.SENSOR_8;
+            sensorMask = sensorMask | org.nlogo.extensions.gogo.GoGoController.SENSOR_8;
             break;
         }
       }
@@ -468,7 +511,7 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     public void perform(Argument args[], Context context)
         throws ExtensionException, org.nlogo.api.LogoException {
       int sensorMask = sensorMask(args[0].getList());
-      int speed = args[1].getBoolean() ? GoGoController.BURST_SPEED_HIGH : GoGoController.BURST_SPEED_LOW;
+      int speed = args[1].getBoolean() ? org.nlogo.extensions.gogo.GoGoController.BURST_SPEED_HIGH : org.nlogo.extensions.gogo.GoGoController.BURST_SPEED_LOW;
 
       controller.setBurstMode(sensorMask, speed);
       burstCycleHandler = new NLBurstCycleHandler();
@@ -486,8 +529,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
         throws ExtensionException, org.nlogo.api.LogoException {
       controller.stopBurstReader();
       burstCycleHandler = null;
-      controller.setBurstMode(0, GoGoController.BURST_SPEED_HIGH);
-      controller.setBurstMode(0, GoGoController.BURST_SPEED_LOW);
+      controller.setBurstMode(0, org.nlogo.extensions.gogo.GoGoController.BURST_SPEED_HIGH);
+      controller.setBurstMode(0, org.nlogo.extensions.gogo.GoGoController.BURST_SPEED_LOW);
 
     }
   }
