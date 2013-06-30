@@ -1,29 +1,28 @@
 package org.nlogo.extensions.gogo;
 
-import org.nlogo.api.ExtensionException;
+import jssc.SerialPortEvent;
+import jssc.SerialPortEventListener;
+import jssc.SerialPortException;
 
-import java.io.PushbackInputStream;
-import java.io.OutputStream;
-import java.io.IOException;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
 
 // Use the full replacement RXTX which has its own package space
 // and doesn't need to Sun javax.comm jar
-import gnu.io.*;
+//import gnu.io.*;
 //import jssc.Serial;
+import org.nlogo.api.ExtensionException;
 import scala.actors.threadpool.Arrays;
 
 public class GoGoController {
-  RXTXCommDriver driver;
+  //RXTXCommDriver driver;
   String portName;
-  CommPortIdentifier portId;
-  BurstReader burstReader;
-  SerialPort port;
+  //CommPortIdentifier portId;
+  //BurstReader burstReader;
+  jssc.SerialPort port;
 
-  public PushbackInputStream inputStream;
-  public OutputStream outputStream;
+  //public PushbackInputStream inputStream;
+  //public OutputStream outputStream;
 
   // current burst mode
   public int burstModeMask = 0;
@@ -49,7 +48,6 @@ public class GoGoController {
 
   public static final byte CMD_PWM_SERVO = (byte) 0xC8;
   
-  
 
   public static final byte CMD_LED_ON = (byte) 0xC0;
   public static final byte CMD_LED_OFF = (byte) 0xC1;
@@ -70,7 +68,7 @@ public class GoGoController {
   public static final int OUTPUT_PORT_D = 0x08;
 
   // Sensor identifiers
-  // A sendor mask is created by XORing these
+  // A sensor mask is created by XORing these
   // See setBurtMode for usage
   public static final int SENSOR_1 = 0x01;
   public static final int SENSOR_2 = 0x02;
@@ -95,13 +93,77 @@ public class GoGoController {
       SENSOR_8};
 
 
+  public static int[] sensorValue = {-2,-2,-2,-2,-2,-2,-2,-2};
+
   public static int sensorID(int sensor) {
     if ((sensor < 1) || (sensor > 8))
       throw new RuntimeException("Sensor number out of range: " + sensor);
     return sensorIDs[(sensor - 1)];
   }
 
-  public static CommPortIdentifier findPortByName(String portName) {
+  class PortListener implements jssc.SerialPortEventListener {
+
+    int nextSensor = 0;
+
+    public void serialEvent(jssc.SerialPortEvent serialPortEvent) {
+
+      if ( serialPortEvent.getEventType() == jssc.SerialPortEvent.RXCHAR) {
+        int num = serialPortEvent.getEventValue();
+        try {
+          byte[] bs = port.readBytes(num);
+
+          //check for OUT_HEADERS
+          int index = 0;
+          if ( index < num - 2 && bs[index] == OUT_HEADER1 && bs[index+1] == OUT_HEADER2 ) {
+            int command = bs[index+2];
+            if ( command > 31 && command < 61) {
+              //it's a sensor read command.  store this value to know which sensor reading is coming back
+              nextSensor = (int)((command - 32)/4);
+            }
+            //System.err.print("OUT HEADER MESSAGE. ALL BYTES READ: ");
+            //for (byte b:bs) { System.err.print(b + " | "); }
+            //System.err.println();
+          }
+
+          //check for IN_HEADERS - goal to get sensor readings.  so only check if we've got msg of >= 4
+          index = 0;
+          while ( index < num - 4 ) {
+            while ( index <= num - 4 && bs[index] != IN_HEADER1 && bs[index+1] != IN_HEADER2)   {
+              index++;
+            }
+            if (index == num-4) {
+              index = index + 2;
+              int val = bs[index] *256 + ((bs[index+1] + 256) % 256);
+              if ( val >= 0 && val <= 1023 ) {
+                sensorValue[nextSensor] = val;
+              } else {
+                System.err.println( "crazy value " + val);
+                             System.err.print("Came from : ");
+                             for (byte b:bs) { System.err.print(b + " | "); }
+                             System.err.println();
+              }
+            }
+            else {
+              index++;
+              //System.err.println("skipping reply value and looking for more");
+//              System.err.print("FRAME-BROKEN or NON-SENSOR DATA: ");
+//              for (byte b:bs) { System.err.print(b + " | "); }
+//              System.err.println();
+            }
+          }
+
+        } catch (jssc.SerialPortException e) {
+          e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+      }
+      else {
+        System.err.println("NON RXCHAR MESSAGE: Type ="+serialPortEvent.getEventType() + ", and Value="+serialPortEvent.getEventValue() );
+      }
+    }
+  }
+
+
+  /*public static CommPortIdentifier findPortByName(String portName) {
     Enumeration<?> portList = CommPortIdentifier.getPortIdentifiers();
     CommPortIdentifier id;
 
@@ -114,7 +176,7 @@ public class GoGoController {
       }
     }
     return null;
-  }
+  }*/
 
 
   public GoGoController(String portName) {
@@ -155,38 +217,22 @@ public class GoGoController {
 
   public String currentPortName() {
     if (port != null)
-      return port.getName();
+      return port.getPortName();
     return null;
   }
 
-  public SerialPort currentPort() {
+  public jssc.SerialPort currentPort() {
     return port;
   }
 
   public void closePort() {
-    synchronized (inputStream) {
-      synchronized (outputStream) {
-        if (port != null) {
-          port.removeEventListener();
-          if (inputStream != null) {
-            try {
-              inputStream.close();
-              inputStream = null;
-            } catch (IOException e) {
-              e.printStackTrace();
-            }
-          }
-          if (outputStream != null) {
-            try {
-              outputStream.close();
-              outputStream = null;
-            } catch (IOException e) {
-              e.printStackTrace();
-            }
-          }
-          port.close();
-          port = null;
-        }
+    if (port != null) {
+      try {
+        port.removeEventListener();
+        port.closePort();
+        port = null;
+      } catch (jssc.SerialPortException e) {
+         e.printStackTrace();
       }
     }
   }
@@ -197,75 +243,37 @@ public class GoGoController {
     if (port != null) {
       return true;
     }
-
-    portId = findPortByName(portName);
-
-    if (portId == null) {
-      throw new RuntimeException(
-          "Cannot find port: " + portName);
-    }
-
-    try {
-      port = (SerialPort) portId.open("GoGoController", 2000);
-    } catch (PortInUseException e) {
-      throw new RuntimeException(
-          "Port is already in use: " + e);
-    } catch (RuntimeException e) {
-      throw new RuntimeException(
-          "Unable to open port: " + e);
-    }
+    System.err.println("about to create Serial Port with name " + portName );
+    port = new jssc.SerialPort( portName );
 
     if (port != null) {
-
       try {
-        inputStream = new PushbackInputStream(port.getInputStream());
-        outputStream = port.getOutputStream();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-      try {
-        port.setSerialPortParams(9600,
-            SerialPort.DATABITS_8,
-            SerialPort.STOPBITS_1,
-            SerialPort.PARITY_NONE);
-      } catch (UnsupportedCommOperationException e) {
-        e.printStackTrace();
+        port.openPort();
+        System.err.println("about to set params and add listener on " + portName);
+        port.setParams(9600, 8, 1, 0);
+        port.addEventListener( new PortListener() );
+      } catch (jssc.SerialPortException e) {
+        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
       }
       return true;
     } else {
       return false;
     }
-
   }
 
-  public void setReadTimeout(int ms) {
-    try {
-      synchronized (inputStream) {
-        port.enableReceiveTimeout(ms);
-        // update our input stream
-        inputStream = new PushbackInputStream(port.getInputStream());
-      }
-    } catch (UnsupportedCommOperationException e) {
-      e.printStackTrace();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-
-  }
 
   public void writeCommand(byte[] command) {
-    synchronized (outputStream) {
-      try {
-        writeByte(OUT_HEADER1);
-        writeByte(OUT_HEADER2);
-        outputStream.write(command);
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+
+    try {
+      port.writeByte(OUT_HEADER1);
+      port.writeByte(OUT_HEADER2);
+      port.writeBytes(command);
+    } catch (jssc.SerialPortException e) {
+      e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
     }
   }
 
-  public byte readByte()
+  /*public byte readByte()
       throws IOException {
     int b;
     synchronized (inputStream) {
@@ -352,25 +360,31 @@ public class GoGoController {
     waitForReplyHeader();
     return waitForByte(ACK_BYTE);
   }
-
+*/
 
   // useful commands
+
 
   public boolean ping() {
     if (port == null) {
       return false;
     }
+
     writeCommand(new byte[]{ CMD_PING });
-    return waitForAck();
+    return true; // waitForAck();
   }
+
+
 
   public boolean beep() {
     if (port == null) {
       return false;
     }
     writeCommand(new byte[]{ CMD_BEEP, (byte) 0x00 });
-    return waitForAck();
+    return true; //waitForAck();
   }
+
+
   
   public boolean led( boolean on ) {
 	  if (port == null) {
@@ -379,48 +393,46 @@ public class GoGoController {
 	    byte cmd = CMD_LED_OFF;
 	    if (on) { cmd = CMD_LED_ON; }
 	    writeCommand(new byte[]{ cmd, (byte) 0x00 });
-	    return waitForAck();
+	    return true; //waitForAck();
   }
 
-  public int _readSensor(int sensor, int mode) {
+  public int internal_readSensor(int sensor, int mode) {
     int sensorVal = 0;
 
     if (sensor < 1)
       throw new RuntimeException("Sensor number out of range: " + sensor);
     if (sensor > 8)
-      return readExtendedSensor(sensor);
+      return -42; //readExtendedSensor(sensor);
 
     int b = CMD_READ_SENSOR | ((sensor - 1) << 2) | mode;
 
-    try {
+
       writeCommand(new byte[]{ (byte) b });
-      synchronized (inputStream) {
-        waitForReplyHeader();
-        sensorVal = readInt() << 8;
-        sensorVal += readInt();
-      }
+//      synchronized (inputStream) {
+//        waitForReplyHeader();
+//        sensorVal = readInt() << 8;
+//        sensorVal += readInt();
+//      }
 
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
 
-    return sensorVal;
+
+    return sensorValue[sensor-1];
   }
 
 
   public int readSensor(int sensor) {
-    return _readSensor(sensor, SENSOR_READ_NORMAL);
+    return internal_readSensor(sensor, SENSOR_READ_NORMAL);
   }
 
   public int readSensorMin(int sensor) {
-    return _readSensor(sensor, SENSOR_READ_MIN);
+    return internal_readSensor(sensor, SENSOR_READ_MIN);
   }
 
   public int readSensorMax(int sensor) {
-    return _readSensor(sensor, SENSOR_READ_MAX);
+    return internal_readSensor(sensor, SENSOR_READ_MAX);
   }
 
-  
+ /*
   //Reads a sensor with number >8.
   //Such sensors use a different serial format.
   public int readExtendedSensor(int sensor) {
@@ -452,14 +464,14 @@ public class GoGoController {
   }
 
 
-
+*/
   public void talkToOutputPorts(int outputPortMask) {
     writeCommand(new byte[]{ CMD_TALK_TO_OUTPUT_PORT,
         (byte) outputPortMask });
-    waitForAck();
+    //waitForAck();
   }
 
-
+/*
   public void setBurstMode(int sensorMask) {
     setBurstMode(sensorMask, BURST_SPEED_HIGH);
   }
@@ -518,10 +530,10 @@ public class GoGoController {
     }
     return new int[]{}; //we didn't see anything before our timeout
   }
-
+*/
   public void outputPortControl(byte cmd) {
     writeCommand(new byte[]{ cmd });
-    waitForAck();
+    //waitForAck();
   }
 
   public void outputPortOn() {
@@ -557,8 +569,9 @@ public class GoGoController {
 
     writeCommand(new byte[]{ (byte) comm });
 
-    waitForAck();
+   // waitForAck();
   }
+
 
   //added for servo
   public void setServoPosition(int val) throws ExtensionException {
@@ -567,9 +580,10 @@ public class GoGoController {
 	          "Requested servo position (" + val + ") is out of safe range (20-40): ");
 	
 	writeCommand(new byte[]{CMD_PWM_SERVO,  (byte) val });
-    waitForAck();
+    //waitForAck();
 }
 
+  /*
 
   public void serialEvent(SerialPortEvent event) {
 
@@ -636,6 +650,6 @@ public class GoGoController {
         port = args[i];
       }
     }
-  }
+  }*/
 
 }
