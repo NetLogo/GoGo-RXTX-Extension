@@ -11,6 +11,7 @@ import java.util.ArrayList;
 // and doesn't need to Sun javax.comm jar
 //import gnu.io.*;
 //import jssc.Serial;
+import jssc.SerialPortTimeoutException;
 import org.nlogo.api.ExtensionException;
 import scala.actors.threadpool.Arrays;
 
@@ -106,11 +107,17 @@ public class GoGoController {
     int nextSensor = 0;
 
     public void serialEvent(jssc.SerialPortEvent serialPortEvent) {
+      System.err.println("MESSAGE: Type ="+serialPortEvent.getEventType() + ", and Value="+serialPortEvent.getEventValue() );
 
       if ( serialPortEvent.getEventType() == jssc.SerialPortEvent.RXCHAR) {
         int num = serialPortEvent.getEventValue();
         try {
+          //IDEA --> String s = port.readHexString(num, ":", 50); and use a string to keep fragments across frames.
           byte[] bs = port.readBytes(num);
+
+          System.err.print("ALL BYTES READ in this frame: ");
+          for (byte b:bs) { System.err.print(b + " | "); }
+          System.err.println();
 
           //check for OUT_HEADERS
           int index = 0;
@@ -155,9 +162,17 @@ public class GoGoController {
         } catch (jssc.SerialPortException e) {
           e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
+        //catch (SerialPortTimeoutException spte ) {
+        ///  spte.printStackTrace();
+        //}
       }
       else {
         System.err.println("NON RXCHAR MESSAGE: Type ="+serialPortEvent.getEventType() + ", and Value="+serialPortEvent.getEventValue() );
+        try {
+          port.purgePort( jssc.SerialPort.PURGE_RXCLEAR | jssc.SerialPort.PURGE_TXCLEAR );
+        } catch (SerialPortException e) {
+          e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
       }
     }
   }
