@@ -1,8 +1,11 @@
 /** (c) 2004 Uri Wilensky. See README.txt for terms of use. **/
 package org.nlogo.extensions.gogo
 
+import installer.GoGoWindowsHandler
+
 import org.nlogo.api.{ ExtensionException, ExtensionManager, PrimitiveManager }
- object GoGoExtension {
+
+object GoGoExtension {
 
   var controllerOpt: Option[GoGoController]                    = None
   var bursterOpt:    Option[GoGoExtension.NLBurstCycleHandler] = None
