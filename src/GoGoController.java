@@ -6,6 +6,7 @@ import jssc.SerialPortException;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Vector;
 
 // Use the full replacement RXTX which has its own package space
 // and doesn't need to Sun javax.comm jar
@@ -105,6 +106,7 @@ public class GoGoController {
   class PortListener implements jssc.SerialPortEventListener {
 
     int nextSensor = 0;
+    ArrayList<Byte> leftovers = new ArrayList<Byte>();
 
     public void serialEvent(jssc.SerialPortEvent serialPortEvent) {
       System.err.println("MESSAGE: Type ="+serialPortEvent.getEventType() + ", and Value="+serialPortEvent.getEventValue() );
@@ -114,53 +116,62 @@ public class GoGoController {
         try {
           //IDEA --> String s = port.readHexString(num, ":", 50); and use a string to keep fragments across frames.
           byte[] bs = port.readBytes(num);
-
-          System.err.print("ALL BYTES READ in this frame: ");
-          for (byte b:bs) { System.err.print(b + " | "); }
+          for (byte b: bs)  {
+            leftovers.add(b);
+          }
+          System.err.print("ALL BYTES in current consideration: ");
+          for (Byte b:leftovers) { System.err.print(b + " | "); }
           System.err.println();
 
           //check for OUT_HEADERS
           int index = 0;
-          if ( index < num - 2 && bs[index] == OUT_HEADER1 && bs[index+1] == OUT_HEADER2 ) {
-            int command = bs[index+2];
-            if ( command > 31 && command < 61) {
-              //it's a sensor read command.  store this value to know which sensor reading is coming back
-              nextSensor = (int)((command - 32)/4);
-            }
-            //System.err.print("OUT HEADER MESSAGE. ALL BYTES READ: ");
-            //for (byte b:bs) { System.err.print(b + " | "); }
-            //System.err.println();
-          }
+          byte current = leftovers.get(index);
+          int cutpoint = 0; //we will discard everything before this index.
 
-          //check for IN_HEADERS - goal to get sensor readings.  so only check if we've got msg of >= 4
-          index = 0;
-          while ( index < num - 4 ) {
-            while ( index <= num - 4 && bs[index] != IN_HEADER1 && bs[index+1] != IN_HEADER2)   {
+          //it would be much nicer to match on 2-tuples here...
+          while ( index < leftovers.size() - 3 ) {
+            index++;
+            byte nextone = leftovers.get(index);
+            if (current == OUT_HEADER1 && nextone == OUT_HEADER2 ) {
               index++;
-            }
-            if (index == num-4) {
-              index = index + 2;
-              int val = bs[index] *256 + ((bs[index+1] + 256) % 256);
-              if ( val >= 0 && val <= 1023 ) {
-                sensorValue[nextSensor] = val;
+              int command = leftovers.get(index);
+              if ( command > 31 && command < 61) {
+                //it's a sensor read command.  store this value to know which sensor reading is coming back
+                nextSensor = (int)((command - 32)/4);
+                cutpoint = index; //now we've used up the data up to the current index.
+              }
+            } else if (current == IN_HEADER1 && nextone == IN_HEADER2 ) {
+              index++;
+              byte possibleHighByte = leftovers.get(index);
+              if (possibleHighByte == ACK_BYTE ) {
+                cutpoint = index; //it's an ack, inbound message ends here.
               } else {
-                System.err.println( "crazy value " + val);
-                             System.err.print("Came from : ");
-                             for (byte b:bs) { System.err.print(b + " | "); }
-                             System.err.println();
+                index++;
+                int val = possibleHighByte *256 + ((leftovers.get(index) + 256) % 256);
+                if ( val >= 0 && val <= 1023 ) {
+                  sensorValue[nextSensor] = val;
+                } else {
+                  System.err.println( "crazy value " + val);
+                  System.err.print("FROM: ");
+                            for (Byte b:leftovers) { System.err.print(b + " | "); }
+                            System.err.println();
+                }
+                cutpoint = index;
               }
             }
-            else {
-              index++;
-              //System.err.println("skipping reply value and looking for more");
-//              System.err.print("FRAME-BROKEN or NON-SENSOR DATA: ");
-//              for (byte b:bs) { System.err.print(b + " | "); }
-//              System.err.println();
-            }
+            current = nextone;
           }
 
+          if (cutpoint > 0 ) {
+            System.err.println("CLEARING FROM cutpoint index " + cutpoint);
+            leftovers.subList(0, cutpoint+1).clear();
+          }
+          System.err.print("LEFTOVER ARRAYLIST IS NOW: ");
+                    for (Byte b:leftovers) { System.err.print(b + " | "); }
+                    System.err.println();
+
         } catch (jssc.SerialPortException e) {
-          e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+          e.printStackTrace();
         }
         //catch (SerialPortTimeoutException spte ) {
         ///  spte.printStackTrace();
@@ -171,7 +182,7 @@ public class GoGoController {
         try {
           port.purgePort( jssc.SerialPort.PURGE_RXCLEAR | jssc.SerialPort.PURGE_TXCLEAR );
         } catch (SerialPortException e) {
-          e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+          e.printStackTrace();
         }
       }
     }
