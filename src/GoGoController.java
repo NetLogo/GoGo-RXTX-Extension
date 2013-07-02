@@ -119,12 +119,15 @@ public class GoGoController {
           for (byte b: bs)  {
             leftovers.add(b);
           }
+
+          if ( leftovers.isEmpty() ) { return; }
           System.err.print("ALL BYTES in current consideration: ");
           for (Byte b:leftovers) { System.err.print(b + " | "); }
           System.err.println();
 
           //check for OUT_HEADERS
           int index = 0;
+
           byte current = leftovers.get(index);
           int cutpoint = 0; //we will discard everything before this index.
 
@@ -138,9 +141,9 @@ public class GoGoController {
               if ( command > 31 && command < 61) {
                 //it's a sensor read command.  store this value to know which sensor reading is coming back
                 nextSensor = (int)((command - 32)/4);
-                cutpoint = index; //now we've used up the data up to the current index.
               }
-            } else if (current == IN_HEADER1 && nextone == IN_HEADER2 ) {
+              cutpoint = index; //now we've used up the data up to the current index.
+            } else if (current == IN_HEADER1 && nextone == IN_HEADER2  ) {
               index++;
               byte possibleHighByte = leftovers.get(index);
               if (possibleHighByte == ACK_BYTE ) {
@@ -158,7 +161,27 @@ public class GoGoController {
                 }
                 cutpoint = index;
               }
+            } else if (current == IN_HEADER2  ) {  //we seem sometimes to miss the first IN_HEADER
+              byte possibleHighByte = nextone;
+              if (possibleHighByte == ACK_BYTE ) {
+                cutpoint = index; //it's an ack, inbound message ends here.
+              } else {
+                index++;
+                int val = possibleHighByte *256 + ((leftovers.get(index) + 256) % 256);
+                if ( val >= 0 && val <= 1023 ) {
+                  sensorValue[nextSensor] = val;
+                } else {
+                  System.err.println( "crazy value " + val);
+                  System.err.print("FROM: ");
+                            for (Byte b:leftovers) { System.err.print(b + " | "); }
+                            System.err.println();
+                }
+                cutpoint = index;
+              }
             }
+
+
+
             current = nextone;
           }
 
