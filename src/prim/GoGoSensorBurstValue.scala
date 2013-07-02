@@ -8,7 +8,7 @@ class GoGoSensorBurstValue extends DefaultReporter {
     val sensor = args(0).getIntValue
     if (burstCycleHandler != null) {
       if (sensor > 0 && sensor < 9)
-        Double.box(burstCycleHandler.sensorValue(sensor))
+        Double.box(burstCycleHandler.getValue(sensor))
       else
         throw new EE("Sensor id %s is out of range, should be 1-8.".format(sensor))
     }
