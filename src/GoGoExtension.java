@@ -1,5 +1,4 @@
 /** (c) 2004 Uri Wilensky. See README.txt for terms of use. **/
-
 package org.nlogo.extensions.gogo;
 
 import jssc.SerialPort;
@@ -13,38 +12,39 @@ import org.nlogo.api.ExtensionManager;
 import org.nlogo.api.LogoList;
 import org.nlogo.api.Syntax;
 
-
 public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   public static org.nlogo.extensions.gogo.GoGoController controller;
 
   public void load(org.nlogo.api.PrimitiveManager primManager) {
-    primManager.addPrimitive("hi", new GoGoBeep());
     primManager.addPrimitive("ports", new GoGoListPorts());
     primManager.addPrimitive("open", new GoGoOpen());
     primManager.addPrimitive("open?", new GoGoOpenPredicate());
     primManager.addPrimitive("close", new GoGoClose());
     primManager.addPrimitive("ping", new GoGoPing());
+
+    primManager.addPrimitive("beep", new GoGoBeep() );
+    primManager.addPrimitive("led-on", new GoGoLedOn() );
+    primManager.addPrimitive("led-off", new GoGoLedOff() );
+
     primManager.addPrimitive("output-port-on", new GoGoOutputPortOn());
     primManager.addPrimitive("output-port-off", new GoGoOutputPortOff());
     primManager.addPrimitive("output-port-coast", new GoGoOutputPortCoast());
     primManager.addPrimitive("output-port-thisway", new GoGoOutputPortThisWay());
     primManager.addPrimitive("output-port-thatway", new GoGoOutputPortThatWay());
-    primManager.addPrimitive("set-output-port-power", new GoGoOutputPortPower());
     primManager.addPrimitive("output-port-reverse", new GoGoOutputPortReverse());
+    primManager.addPrimitive("set-output-port-power", new GoGoOutputPortPower());
     primManager.addPrimitive("talk-to-output-ports", new GoGoTalkToOutputPorts());
+
+    primManager.addPrimitive("set-servo", new GoGoSetServo() );
+// BURST MODE NOT (yet) supported.
 //    primManager.addPrimitive("set-burst-mode", new GoGoSetBurstMode());
 //    primManager.addPrimitive("stop-burst-mode", new GoGoStopBurstMode());
 //    primManager.addPrimitive("burst-value", new GoGoSensorBurstValue());
-    primManager.addPrimitive("sensor", new GoGoSensor());
 //    //primManager.addPrimitive( "switch", new GoGoSwitch() ) ;
-    primManager.addPrimitive("beep", new GoGoBeep() );
-    primManager.addPrimitive("led-on", new GoGoLedOn() );
-    primManager.addPrimitive("led-off", new GoGoLedOff() );
-    primManager.addPrimitive("install", new GoGoInstall());
-//
-  	primManager.addPrimitive("set-servo", new GoGoSetServo() );
+    primManager.addPrimitive("sensor", new GoGoSensor());
 
+    primManager.addPrimitive("install", new GoGoInstall());
   }
 
   public void runOnce(org.nlogo.api.ExtensionManager em) throws ExtensionException {
@@ -80,7 +80,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
 
-
   public static void ensureGoGoPort()
       throws ExtensionException {
     if (controller == null || controller.currentPort() == null) {
@@ -99,10 +98,9 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
 
-
   public static void initController(String portName) {
     controller = new org.nlogo.extensions.gogo.GoGoController(portName);
-    // no need to ping to clear out any queued up input/output, listener will dump
+    //(I THINK) no need to ping to clear out any queued up input/output, listener will dump
   }
 
   public static class GoGoOpen extends DefaultCommand {
@@ -122,6 +120,8 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       try {
         initController(args[0].getString());
         controller.openPort();
+        //QUESTION about readtimeouts.  I have not used them, but maybe that's a cause of things like
+        //empty packets in windows.
         //controller.setReadTimeout(50);
       } catch (java.lang.NoClassDefFoundError e) {
         throw new ExtensionException(
@@ -155,7 +155,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       }
     }
   }
-
 
 
   public static class GoGoListPorts extends DefaultReporter {
@@ -218,57 +217,56 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
   }
   
   public static class GoGoBeep extends DefaultCommand {
-	    public Syntax getSyntax() {
-	      return Syntax.commandSyntax();
-	    }
+    public Syntax getSyntax() {
+      return Syntax.commandSyntax();
+    }
 
-	    public void perform(Argument args[], Context context)
-	        throws ExtensionException, org.nlogo.api.LogoException {
-	      ensureGoGoPort();
-	      controller.beep();
-	    }
-	  }
+    public void perform(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+      ensureGoGoPort();
+      controller.beep();
+    }
+  }
 	
    public static class GoGoSetServo extends DefaultCommand {
-		    public Syntax getSyntax() {
-			  int[] posParam = {Syntax.NumberType()};
-		      return Syntax.commandSyntax(posParam);
-		    }
+      public Syntax getSyntax() {
+      int[] posParam = {Syntax.NumberType()};
+        return Syntax.commandSyntax(posParam);
+      }
 
-		    public void perform(Argument args[], Context context)
-		        throws ExtensionException, org.nlogo.api.LogoException {
-		      ensureGoGoPort();
-			  int val = args[0].getIntValue();
-			//  if (val > 40 ) { val = 40; }
-			//  else if ( val < 20 ) { val = 20; }
-		      controller.setServoPosition( val );
-		    }
-		  }
+      public void perform(Argument args[], Context context)
+          throws ExtensionException, org.nlogo.api.LogoException {
+        ensureGoGoPort();
+      int val = args[0].getIntValue();
+    //  if (val > 40 ) { val = 40; }
+    //  else if ( val < 20 ) { val = 20; }
+        controller.setServoPosition( val );
+      }
+   }
   
  public static class GoGoLedOn extends DefaultCommand {
-	    public Syntax getSyntax() {
-	      return Syntax.commandSyntax();
-	    }
+    public Syntax getSyntax() {
+      return Syntax.commandSyntax();
+    }
 
-	    public void perform(Argument args[], Context context)
-	        throws ExtensionException, org.nlogo.api.LogoException {
-	      ensureGoGoPort();
-	      controller.led( true );
-	    }
-	  }
+    public void perform(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+      ensureGoGoPort();
+      controller.led( true );
+    }
+ }
   
   public static class GoGoLedOff extends DefaultCommand {
-	    public Syntax getSyntax() {
-	      return Syntax.commandSyntax();
-	    }
+    public Syntax getSyntax() {
+      return Syntax.commandSyntax();
+    }
 
-	    public void perform(Argument args[], Context context)
-	        throws ExtensionException, org.nlogo.api.LogoException {
-	      ensureGoGoPort();
-	      controller.led( false );
-	    }
-	  }
-
+    public void perform(Argument args[], Context context)
+        throws ExtensionException, org.nlogo.api.LogoException {
+      ensureGoGoPort();
+      controller.led( false );
+    }
+  }
 
 
   public static class GoGoOutputPortOff extends DefaultCommand {
@@ -384,44 +382,6 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     }
   }
 
-/*  public static NLBurstCycleHandler burstCycleHandler = null;
-
-  public static class NLBurstCycleHandler
-      implements org.nlogo.extensions.gogo.GoGoController.BurstCycleHandler {
-    public final int[] sensorValues = new int[8];
-
-    synchronized public void handleBurstCycle(int sensor, int value) {
-      //System.out.println( "Sensor " + sensor + " value: " + value );
-      sensorValues[sensor - 1] = value;
-    }
-
-    public int sensorValue(int sensor) {
-      return sensorValues[sensor - 1];
-    }
-
-  }
-
-  public static class GoGoSensorBurstValue extends DefaultReporter {
-    public Syntax getSyntax() {
-      int[] right = {Syntax.NumberType()};
-      return Syntax.reporterSyntax(right, Syntax.NumberType());
-    }
-
-    public Object report(Argument args[], Context context)
-        throws ExtensionException, org.nlogo.api.LogoException {
-      int sensor = args[0].getIntValue();
-      if (burstCycleHandler != null) {
-        if (sensor > 0 && sensor < 9) {
-          return Double.valueOf(burstCycleHandler.sensorValue(sensor));
-        } else {
-          throw new ExtensionException("Sensor id " + sensor + " is out of range, should be 1-8.");
-        }
-      } else {
-        throw new ExtensionException("Burst Mode is not set, use set-burst-mode to turn on burst mode for specific sensors.");
-      }
-    }
-  }*/
-
 
   static private int sensorMask(java.util.AbstractSequentialList<?> sensorList) {
     int sensorMask = 0;
@@ -463,7 +423,47 @@ public class GoGoExtension extends org.nlogo.api.DefaultClassManager {
     return sensorMask;
   }
 
-/*  public static class GoGoSetBurstMode extends DefaultCommand {
+
+  /*  public static NLBurstCycleHandler burstCycleHandler = null;
+
+    public static class NLBurstCycleHandler
+        implements org.nlogo.extensions.gogo.GoGoController.BurstCycleHandler {
+      public final int[] sensorValues = new int[8];
+
+      synchronized public void handleBurstCycle(int sensor, int value) {
+        //System.out.println( "Sensor " + sensor + " value: " + value );
+        sensorValues[sensor - 1] = value;
+      }
+
+      public int sensorValue(int sensor) {
+        return sensorValues[sensor - 1];
+      }
+
+    }
+
+    public static class GoGoSensorBurstValue extends DefaultReporter {
+      public Syntax getSyntax() {
+        int[] right = {Syntax.NumberType()};
+        return Syntax.reporterSyntax(right, Syntax.NumberType());
+      }
+
+      public Object report(Argument args[], Context context)
+          throws ExtensionException, org.nlogo.api.LogoException {
+        int sensor = args[0].getIntValue();
+        if (burstCycleHandler != null) {
+          if (sensor > 0 && sensor < 9) {
+            return Double.valueOf(burstCycleHandler.sensorValue(sensor));
+          } else {
+            throw new ExtensionException("Sensor id " + sensor + " is out of range, should be 1-8.");
+          }
+        } else {
+          throw new ExtensionException("Burst Mode is not set, use set-burst-mode to turn on burst mode for specific sensors.");
+        }
+      }
+    }
+
+
+    public static class GoGoSetBurstMode extends DefaultCommand {
     public Syntax getSyntax() {
       int[] right = {Syntax.ListType(), Syntax.BooleanType()};
       return Syntax.commandSyntax(right);

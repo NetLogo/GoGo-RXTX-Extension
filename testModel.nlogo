@@ -47,23 +47,6 @@ NIL
 1
 
 BUTTON
-44
-273
-123
-306
-NIL
-gogo:hi
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
 63
 380
 163
@@ -117,7 +100,7 @@ servo-position
 servo-position
 20
 40
-21
+25
 1
 1
 deg
@@ -206,6 +189,23 @@ tick-time
 1
 NIL
 HORIZONTAL
+
+BUTTON
+20
+252
+205
+285
+test motor d
+gogo:talk-to-output-ports [\"d\"]\ngogo:set-output-port-power 6\ngogo:output-port-on\nwait 2\n\ngogo:output-port-off\nwait .2\ngogo:set-output-port-power 7\ngogo:output-port-reverse\ngogo:output-port-on\nwait 2\ngogo:output-port-off
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -550,7 +550,7 @@ Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 
 @#$#@#$#@
-NetLogo 5.0.4
+NetLogo 5.0.5
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

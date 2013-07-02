@@ -1,33 +1,19 @@
 package org.nlogo.extensions.gogo;
 
-import jssc.SerialPortEvent;
-import jssc.SerialPortEventListener;
-import jssc.SerialPortException;
-
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Vector;
 
-// Use the full replacement RXTX which has its own package space
-// and doesn't need to Sun javax.comm jar
-//import gnu.io.*;
-//import jssc.Serial;
-import jssc.SerialPortTimeoutException;
+import jssc.SerialPort;
 import org.nlogo.api.ExtensionException;
 import scala.actors.threadpool.Arrays;
 
+
 public class GoGoController {
-  //RXTXCommDriver driver;
   String portName;
-  //CommPortIdentifier portId;
-  //BurstReader burstReader;
   jssc.SerialPort port;
 
-  //public PushbackInputStream inputStream;
-  //public OutputStream outputStream;
-
-  // current burst mode
-  public int burstModeMask = 0;
+  // current burst mode -- not supported in current version
+  //public int burstModeMask = 0;
 
   public static final byte IN_HEADER1 = (byte) 0x55;
   public static final byte IN_HEADER2 = (byte) 0xFF;
@@ -81,9 +67,10 @@ public class GoGoController {
   public static final int SENSOR_7 = 0x40;
   public static final int SENSOR_8 = 0x80;
 
-  public static final int BURST_SPEED_HIGH = 0x00;
-  public static final int BURST_SPEED_LOW = 0x01;
-  public static final byte BURST_CHUNK_HEADER = (byte) 0x0C;
+  //NO BURST YET
+  // public static final int BURST_SPEED_HIGH = 0x00;
+  // public static final int BURST_SPEED_LOW = 0x01;
+  // public static final byte BURST_CHUNK_HEADER = (byte) 0x0C;
 
   private static final int[] sensorIDs = {SENSOR_1,
       SENSOR_2,
@@ -97,12 +84,88 @@ public class GoGoController {
 
   public static int[] sensorValue = {-2,-2,-2,-2,-2,-2,-2,-2};
 
+
+  public GoGoController(String portName) {
+    this.portName = portName;
+  }
+
   public static int sensorID(int sensor) {
     if ((sensor < 1) || (sensor > 8))
       throw new RuntimeException("Sensor number out of range: " + sensor);
     return sensorIDs[(sensor - 1)];
   }
 
+
+  //PORT ENUMERATION
+   public static List<String> serialPorts() {
+    return listPorts(false);
+  }
+
+  //no longer useful - see note on listPorts.
+  public static List<String> availablePorts() {
+      return listPorts(true);
+  }
+
+  //i didn't see a way to distinguish between ports in use & not in the jssc api.
+  //so the onlyAvaiable flag is no longer used.
+  public static List<String> listPorts(boolean onlyAvailable) {
+    String[] ports = jssc.SerialPortList.getPortNames();
+    System.err.println(ports.length);
+    ArrayList<String> portNames = new ArrayList<String>();
+    portNames.addAll(Arrays.asList(ports));
+    return portNames;
+  }
+
+  public String currentPortName() {
+    if (port != null)
+      return port.getPortName();
+    return null;
+  }
+
+  public jssc.SerialPort currentPort() {
+    return port;
+  }
+
+  public void closePort() {
+    if (port != null) {
+      try {
+        port.removeEventListener();
+        port.closePort();
+        port = null;
+      } catch (jssc.SerialPortException e) {
+         e.printStackTrace();
+      }
+    }
+  }
+
+  public boolean openPort() throws ExtensionException {
+    // if already open, just return true
+    if (port != null) {
+      return true;
+    }
+    System.err.println("about to create Serial Port with name " + portName );
+    port = new jssc.SerialPort( portName );
+
+    if (port != null) {
+      try {
+        port.openPort();
+        System.err.println("about to set params and add listener on " + portName);
+        //int baudRate, int dataBits, int stopBits, int parity
+        //(9600, 8, 1, 0);
+        port.setParams( SerialPort.BAUDRATE_9600, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+        port.addEventListener( new PortListener() );
+      } catch (jssc.SerialPortException e) {
+          throw new ExtensionException("Unable to open port " + portName, e);
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+
+
+  //this listener interprets the meaning of all inbound communication from the gogo.
   class PortListener implements jssc.SerialPortEventListener {
 
     int nextSensor = 0;
@@ -113,28 +176,36 @@ public class GoGoController {
 
       if ( serialPortEvent.getEventType() == jssc.SerialPortEvent.RXCHAR) {
         int num = serialPortEvent.getEventValue();
+
+        //I have seen zero-length 'messages' in the windows logs.
+        // without a check, two in a row can causes our 'leftover' arraylist to be empty.
+        if (num == 0) { return; }
+
         try {
-          //IDEA --> String s = port.readHexString(num, ":", 50); and use a string to keep fragments across frames.
           byte[] bs = port.readBytes(num);
           for (byte b: bs)  {
             leftovers.add(b);
           }
 
+          //Given the check for 'zero' in the 'num' variable, this should be redundant
           if ( leftovers.isEmpty() ) { return; }
+
+          //debug logging.  remove.
           System.err.print("ALL BYTES in current consideration: ");
           for (Byte b:leftovers) { System.err.print(b + " | "); }
           System.err.println();
 
-          //check for OUT_HEADERS
           int index = 0;
-
           byte current = leftovers.get(index);
           int cutpoint = 0; //we will discard everything before this index.
+
 
           //it would be much nicer to match on 2-tuples here...
           while ( index < leftovers.size() - 3 ) {
             index++;
             byte nextone = leftovers.get(index);
+
+            //is it signaling an outbound message?
             if (current == OUT_HEADER1 && nextone == OUT_HEADER2 ) {
               index++;
               int command = leftovers.get(index);
@@ -143,11 +214,13 @@ public class GoGoController {
                 nextSensor = (int)((command - 32)/4);
               }
               cutpoint = index; //now we've used up the data up to the current index.
+
+              //is it signaling an inbound message?
             } else if (current == IN_HEADER1 && nextone == IN_HEADER2  ) {
               index++;
               byte possibleHighByte = leftovers.get(index);
               if (possibleHighByte == ACK_BYTE ) {
-                cutpoint = index; //it's an ack, inbound message ends here.
+                cutpoint = index; //it's an ack, nothing to do & the inbound message ends here.
               } else {
                 index++;
                 int val = possibleHighByte *256 + ((leftovers.get(index) + 256) % 256);
@@ -180,8 +253,6 @@ public class GoGoController {
               }
             }
 
-
-
             current = nextone;
           }
 
@@ -189,22 +260,21 @@ public class GoGoController {
             System.err.println("CLEARING FROM cutpoint index " + cutpoint);
             leftovers.subList(0, cutpoint+1).clear();
           }
+
+          //debug logging remove
           System.err.print("LEFTOVER ARRAYLIST IS NOW: ");
-                    for (Byte b:leftovers) { System.err.print(b + " | "); }
-                    System.err.println();
+          for (Byte b:leftovers) { System.err.print(b + " | "); }
+          System.err.println();
 
         } catch (jssc.SerialPortException e) {
           e.printStackTrace();
         }
-        //catch (SerialPortTimeoutException spte ) {
-        ///  spte.printStackTrace();
-        //}
       }
       else {
         System.err.println("NON RXCHAR MESSAGE: Type ="+serialPortEvent.getEventType() + ", and Value="+serialPortEvent.getEventValue() );
         try {
           port.purgePort( jssc.SerialPort.PURGE_RXCLEAR | jssc.SerialPort.PURGE_TXCLEAR );
-        } catch (SerialPortException e) {
+        } catch (jssc.SerialPortException e) {
           e.printStackTrace();
         }
       }
@@ -212,220 +282,61 @@ public class GoGoController {
   }
 
 
-  /*public static CommPortIdentifier findPortByName(String portName) {
-    Enumeration<?> portList = CommPortIdentifier.getPortIdentifiers();
-    CommPortIdentifier id;
 
-    while (portList.hasMoreElements()) {
-      id = (CommPortIdentifier) portList.nextElement();
-      if (id.getPortType() == CommPortIdentifier.PORT_SERIAL) {
-        if (id.getName().equals(portName)) {
-          return id;
-        }
-      }
-    }
-    return null;
-  }*/
-
-
-  public GoGoController(String portName) {
-    this.portName = portName;
-  }
-
-  public static List<String> availablePorts() {
-    return listPorts(true);
-  }
-
-  public static List<String> serialPorts() {
-    return listPorts(false);
-  }
-
-  public static List<String> listPorts(boolean onlyAvailable) {
-/*    Enumeration<?> portList;
-    CommPortIdentifier portId;
-    List<String> portNames = new ArrayList<String>();
-
-    portList = CommPortIdentifier.getPortIdentifiers();
-    while (portList.hasMoreElements()) {
-      portId = (CommPortIdentifier) portList.nextElement();
-      if (portId.getPortType() == CommPortIdentifier.PORT_SERIAL
-          && (!onlyAvailable || !portId.isCurrentlyOwned())) {
-        portNames.add(portId.getName());
-      }
-    }
-    */
-    String[] ports = jssc.SerialPortList.getPortNames();
-    System.err.println(ports.length);
-    ArrayList<String> portNames = new ArrayList<String>();
-    //for ( String pname : ports ) {
-    //  portNames.add( pname );
-   // }
-    portNames.addAll(Arrays.asList(ports));
-    return portNames;
-  }
-
-  public String currentPortName() {
-    if (port != null)
-      return port.getPortName();
-    return null;
-  }
-
-  public jssc.SerialPort currentPort() {
-    return port;
-  }
-
-  public void closePort() {
-    if (port != null) {
-      try {
-        port.removeEventListener();
-        port.closePort();
-        port = null;
-      } catch (jssc.SerialPortException e) {
-         e.printStackTrace();
-      }
-    }
-  }
-
-
-  public boolean openPort() {
-    // if already open, just return true
-    if (port != null) {
-      return true;
-    }
-    System.err.println("about to create Serial Port with name " + portName );
-    port = new jssc.SerialPort( portName );
-
-    if (port != null) {
-      try {
-        port.openPort();
-        System.err.println("about to set params and add listener on " + portName);
-        port.setParams(9600, 8, 1, 0);
-        port.addEventListener( new PortListener() );
-      } catch (jssc.SerialPortException e) {
-        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-      }
-      return true;
-    } else {
+  public boolean ping() throws ExtensionException {
+    if (port == null) {
       return false;
+    } else {
+      writeCommand(new byte[]{ CMD_PING });
+      return true;
+      // waitForAck();
     }
   }
 
 
-  public void writeCommand(byte[] command) {
+  //All writing to the port happens through this method.
+  public void writeCommand(byte[] command) throws ExtensionException {
 
     try {
       port.writeByte(OUT_HEADER1);
       port.writeByte(OUT_HEADER2);
       port.writeBytes(command);
     } catch (jssc.SerialPortException e) {
-      e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+       throw new ExtensionException("WRITE FAILED", e);
     }
   }
 
-  /*public byte readByte()
-      throws IOException {
-    int b;
-    synchronized (inputStream) {
-      b = inputStream.read();
-    }
-    return (byte) b;
-    //System.out.println( "Read: " + b ) ;
-  }
+  //READING
+  public int internal_readSensor(int sensor, int mode) throws ExtensionException {
+    int sensorVal = 0;
 
-  public byte peekByte()
-      throws IOException {
-    int b;
-    synchronized (inputStream) {
-      b = inputStream.read();
-      inputStream.unread(b);
-    }
-    return (byte) b;
-
-  }
-
-  public int readInt()
-      throws IOException {
-    int b;
-    synchronized (inputStream) {
-      b = inputStream.read();
-    }
-    //System.out.println( "Read: " + b ) ;
-    return b;
-  }
-
-  public void writeByte(byte b)
-      throws IOException {
-    synchronized (outputStream) {
-      outputStream.write(b);
-      //System.out.println( "Wrote: " + b ) ;
-    }
-  }
-
-  public boolean waitForReplyHeader() {
-    try {
-      int b;
-      for (int i = 0; i < 256; i++) {
-        synchronized (inputStream) {
-          b = readByte();
-          if (b == IN_HEADER1) {
-            b = readByte();
-            if (b == IN_HEADER2) return true;
-          } 
-          else 
-          {
-        	  if (b == IN_HEADER2) { return true;  }
-          }
-        }
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return false;
-  }
-
-  public boolean waitForByte(byte target) {
-    try {
-      int b;
-      for (int i = 0; i < 256; i++) {
-        synchronized (inputStream) {
-          b = readByte();
-          if (b == target) {
-            return true;
-          }
-        }
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return false;
-  }
-
-  public boolean waitForAck() {
-    waitForReplyHeader();
-    return waitForByte(ACK_BYTE);
-  }
-
-  public boolean waitForAck(int msec) {
-    waitForReplyHeader();
-    return waitForByte(ACK_BYTE);
-  }
-*/
-
-  // useful commands
-
-
-  public boolean ping() {
-    if (port == null) {
-      return false;
+    if (sensor < 1)
+      throw new RuntimeException("Sensor number out of range: " + sensor);
+    if (sensor > 8) {
+      throw new ExtensionException("Extended Sensor Range not currently supported");
     }
 
-    writeCommand(new byte[]{ CMD_PING });
-    return true; // waitForAck();
+    int b = CMD_READ_SENSOR | ((sensor - 1) << 2) | mode;
+    writeCommand(new byte[]{ (byte) b });
+    return sensorValue[sensor-1];
+  }
+
+  public int readSensor(int sensor) throws ExtensionException {
+    return internal_readSensor(sensor, SENSOR_READ_NORMAL);
+  }
+
+  public int readSensorMin(int sensor) throws ExtensionException {
+    return internal_readSensor(sensor, SENSOR_READ_MIN);
+  }
+
+  public int readSensorMax(int sensor) throws ExtensionException {
+    return internal_readSensor(sensor, SENSOR_READ_MAX);
   }
 
 
 
-  public boolean beep() {
+  //SIMPLE OUTPUTS
+  public boolean beep() throws ExtensionException {
     if (port == null) {
       return false;
     }
@@ -433,9 +344,7 @@ public class GoGoController {
     return true; //waitForAck();
   }
 
-
-  
-  public boolean led( boolean on ) {
+  public boolean led( boolean on ) throws ExtensionException  {
 	  if (port == null) {
 	      return false;
 	    }
@@ -445,58 +354,79 @@ public class GoGoController {
 	    return true; //waitForAck();
   }
 
-  public int internal_readSensor(int sensor, int mode) {
-    int sensorVal = 0;
+  //MAIN OUTPUTS
+  public void talkToOutputPorts(int outputPortMask) throws ExtensionException {
+    writeCommand(new byte[]{ CMD_TALK_TO_OUTPUT_PORT,  (byte) outputPortMask });
+    //waitForAck();
+  }
 
-    if (sensor < 1)
-      throw new RuntimeException("Sensor number out of range: " + sensor);
-    if (sensor > 8)
-      return -42; //readExtendedSensor(sensor);
+  public void outputPortControl(byte cmd) throws ExtensionException {
+    writeCommand(new byte[]{ cmd });
+    //waitForAck();
+  }
 
-    int b = CMD_READ_SENSOR | ((sensor - 1) << 2) | mode;
+  public void outputPortOn() throws ExtensionException {
+    outputPortControl(CMD_OUTPUT_PORT_ON);
+  }
 
+  public void outputPortOff() throws ExtensionException  {
+    outputPortControl(CMD_OUTPUT_PORT_OFF);
+  }
 
-      writeCommand(new byte[]{ (byte) b });
-//      synchronized (inputStream) {
-//        waitForReplyHeader();
-//        sensorVal = readInt() << 8;
-//        sensorVal += readInt();
-//      }
+  public void outputPortCoast() throws ExtensionException  {
+    outputPortControl(CMD_OUTPUT_PORT_COAST);
+  }
 
+  public void outputPortThatWay() throws ExtensionException {
+    outputPortControl(CMD_OUTPUT_PORT_THATWAY);
+  }
 
+  public void outputPortThisWay() throws ExtensionException {
+    outputPortControl(CMD_OUTPUT_PORT_THATWAY);
+  }
 
-    return sensorValue[sensor-1];
+  public void outputPortReverse() throws ExtensionException {
+    outputPortControl(CMD_OUTPUT_PORT_RD);
+  }
+
+  public void setOutputPortPower(int level) throws ExtensionException {
+    if ((level < 0) || (level > 7))
+      throw new RuntimeException(
+          "Power level out of range: " + level);
+    int comm = CMD_OUTPUT_PORT_POWER | level << 2;
+    writeCommand(new byte[]{ (byte) comm });
+   // waitForAck();
   }
 
 
-  public int readSensor(int sensor) {
-    return internal_readSensor(sensor, SENSOR_READ_NORMAL);
+  //added for servo
+  public void setServoPosition(int val) throws ExtensionException {
+	  if ( (val < 20) || (val > 40 ) ) {
+		  throw new ExtensionException( "Requested servo position (" + val + ") is out of safe range (20-40): ");
+    } else {
+	    writeCommand(new byte[]{CMD_PWM_SERVO,  (byte) val });
+    }
+    //waitForAck();
   }
 
-  public int readSensorMin(int sensor) {
-    return internal_readSensor(sensor, SENSOR_READ_MIN);
-  }
 
-  public int readSensorMax(int sensor) {
-    return internal_readSensor(sensor, SENSOR_READ_MAX);
-  }
-
+  //NOT YET SUPPORTING EXTENDED SENSOR RANGE (NO CONVENIENT WAY TO TEST).
  /*
   //Reads a sensor with number >8.
   //Such sensors use a different serial format.
   public int readExtendedSensor(int sensor) {
     int sensorVal = 0;
-    
+
     //Turn sensor number (9+) into 0+
     sensor = sensor - 9;
-    
+
     //Break sensor value into bytes to send to board
     byte highByte = (byte) (sensor >> 8);
     byte lowByte = (byte) (sensor & 0xFF);
-    
+
     //Create command string
     byte[] command = { CMD_READ_EXTENDED_SENSOR, highByte, lowByte };
-    
+
     //Send command
     try {
       writeCommand(command);
@@ -512,15 +442,6 @@ public class GoGoController {
     return sensorVal;
   }
 
-
-*/
-  public void talkToOutputPorts(int outputPortMask) {
-    writeCommand(new byte[]{ CMD_TALK_TO_OUTPUT_PORT,
-        (byte) outputPortMask });
-    //waitForAck();
-  }
-
-/*
   public void setBurstMode(int sensorMask) {
     setBurstMode(sensorMask, BURST_SPEED_HIGH);
   }
@@ -579,64 +500,6 @@ public class GoGoController {
     }
     return new int[]{}; //we didn't see anything before our timeout
   }
-*/
-  public void outputPortControl(byte cmd) {
-    writeCommand(new byte[]{ cmd });
-    //waitForAck();
-  }
-
-  public void outputPortOn() {
-    outputPortControl(CMD_OUTPUT_PORT_ON);
-  }
-
-  public void outputPortOff() {
-    outputPortControl(CMD_OUTPUT_PORT_OFF);
-  }
-
-  public void outputPortCoast() {
-    outputPortControl(CMD_OUTPUT_PORT_COAST);
-  }
-
-  public void outputPortThatWay() {
-    outputPortControl(CMD_OUTPUT_PORT_THATWAY);
-  }
-
-  public void outputPortThisWay() {
-    outputPortControl(CMD_OUTPUT_PORT_THATWAY);
-  }
-
-  public void outputPortReverse() {
-    outputPortControl(CMD_OUTPUT_PORT_RD);
-  }
-
-  public void setOutputPortPower(int level) {
-    if ((level < 0) || (level > 7))
-      throw new RuntimeException(
-          "Power level out of range: " + level);
-
-    int comm = CMD_OUTPUT_PORT_POWER | level << 2;
-
-    writeCommand(new byte[]{ (byte) comm });
-
-   // waitForAck();
-  }
-
-
-  //added for servo
-  public void setServoPosition(int val) throws ExtensionException {
-	if ( (val < 20) || (val > 40 ) )
-		throw new ExtensionException(
-	          "Requested servo position (" + val + ") is out of safe range (20-40): ");
-	
-	writeCommand(new byte[]{CMD_PWM_SERVO,  (byte) val });
-    //waitForAck();
-}
-
-  /*
-
-  public void serialEvent(SerialPortEvent event) {
-
-  }
 
   public interface BurstCycleHandler {
     void handleBurstCycle(int sensor, int value);
@@ -678,12 +541,8 @@ public class GoGoController {
     }
   }
   
-  
-  
 
   // main for GoGoController class, which functions as a small utility
-
-
   public static void main(String[] args)
       throws java.io.IOException {
     String port = null;
@@ -699,6 +558,10 @@ public class GoGoController {
         port = args[i];
       }
     }
-  }*/
+  }
+
+  */
+
+
 
 }
