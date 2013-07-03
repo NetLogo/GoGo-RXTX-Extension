@@ -10,7 +10,7 @@ private[controller] trait PortOpener {
 
   self: HasPortsAndStreams =>
 
-  def openPort() : Boolean = portOpt map (_ => true) getOrElse generateOpenPort()
+  def openPort(): Boolean = portOpt map (_ => true) getOrElse generateOpenPort()
 
   private def generateOpenPort() : Boolean = {
     portIDOpt = findPortByName(portName)

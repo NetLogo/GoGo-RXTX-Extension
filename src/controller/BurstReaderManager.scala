@@ -24,7 +24,7 @@ trait BurstReaderManager {
     setBurstMode(0, BurstSpeedLow) // Umm.. WHAT?! --JAB (7/2/13)
   }
 
-  def getBurstValue(sensorNum: Int) : Int =
+  def getBurstValue(sensorNum: Int): Int =
     if (sensorNum > 0 && sensorNum < 9)
       burstReaderOpt map (_.handler.getValue(sensorNum)) getOrElse (throw new ExtensionException("No burst reader to read from"))
     else
@@ -34,7 +34,7 @@ trait BurstReaderManager {
     writeAndWait((CmdSetBurstMode | speed).toByte, sensorMask.toByte)
   }
 
-  private def readBurstCycle() : Option[(Int, Int)] =
+  private def readBurstCycle(): Option[(Int, Int)] =
     if (waitForByte(BurstChunkHeader)) {
 
       val (high, low) = (readInt(), readInt())

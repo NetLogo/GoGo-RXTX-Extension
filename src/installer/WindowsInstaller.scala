@@ -85,7 +85,7 @@ object WindowsInstaller {
     }
   }
 
-  private def obtainPermissionToInstall() : Boolean = {
+  private def obtainPermissionToInstall(): Boolean = {
     try
       AbstractWorkspace.isApp && {
         val parent = App.app.frame

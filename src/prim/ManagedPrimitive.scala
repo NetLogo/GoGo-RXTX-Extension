@@ -13,7 +13,7 @@ abstract class ManagedReporter(manager: ControllerManager) extends DefaultReport
     }
   }
 
-  def managedReport(args: Array[Argument], context: Context, controller: Controller) : AnyRef
+  def managedReport(args: Array[Argument], context: Context, controller: Controller): AnyRef
 
 }
 

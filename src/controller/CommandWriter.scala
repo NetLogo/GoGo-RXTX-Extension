@@ -8,12 +8,12 @@ trait CommandWriter {
 
   self: Waiter with HasPortsAndStreams =>
 
-  protected def writeAndWait(bytes: Byte*) : Boolean = {
+  protected def writeAndWait(bytes: Byte*): Boolean = {
     writeCommand(bytes.toArray)
     waitForAck()
   }
 
-  protected def writeAndWaitForReplyHeader(bytes: Byte*) : Boolean = {
+  protected def writeAndWaitForReplyHeader(bytes: Byte*): Boolean = {
     writeCommand(bytes.toArray)
     waitForReplyHeader()
   }

@@ -20,7 +20,7 @@ class ControllerManager {
     }
   }
 
-  def withController[T](f: (Controller) => T) : T = {
+  def withController[T](f: (Controller) => T): T = {
     controllerOpt flatMap {
       case controller if (!controller.currentPort.isEmpty) =>
         Some(f(controller))

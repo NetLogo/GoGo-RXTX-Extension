@@ -16,7 +16,7 @@ class SetBurstMode(manager: ControllerManager) extends ManagedCommand(manager) {
     controller.startBurstReader(generateBurster)
   }
 
-  private def sensorMask(sensors: Seq[_]) : Int = {
+  private def sensorMask(sensors: Seq[_]): Int = {
     val sensorMap = Map('1' -> Sensor1, '2' -> Sensor2, '3' -> Sensor3, '4' -> Sensor4, '5' -> Sensor5, '6' -> Sensor6, '7' -> Sensor7, '8' -> Sensor8)
     buildMask(sensors, sensorMap)
   }
@@ -25,7 +25,7 @@ class SetBurstMode(manager: ControllerManager) extends ManagedCommand(manager) {
 
     private val sensorValues = new Array[Int](8)
 
-    def getValue(sensor: Int) : Int = sensorValues(sensor - 1)
+    def getValue(sensor: Int): Int = sensorValues(sensor - 1)
     def handleBurstCycle(sensor: Int, value: Int) {
       sensorValues(sensor - 1) = value
     }

@@ -25,7 +25,7 @@ trait Waiter {
   protected def waitForByte(target: Byte): Boolean =
     waitUntil { case _ if (readByte() == target) => true }
 
-  private def waitUntil(f: (Int) => Boolean) : Boolean =
+  private def waitUntil(f: (Int) => Boolean): Boolean =
     try (0 until 256 exists f)
     catch {
       case e: IOException =>
