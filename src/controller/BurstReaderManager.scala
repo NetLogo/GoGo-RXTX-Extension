@@ -6,7 +6,7 @@ import Constants._
 
 trait BurstReaderManager {
 
-  self: CommandWriter with Reader with Waiter =>
+  self: CommandWriter with Waiter =>
 
   private var burstReaderOpt: Option[BurstReader] = None
 

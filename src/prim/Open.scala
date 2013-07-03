@@ -18,7 +18,7 @@ class Open(manager: ControllerManager) extends DefaultCommand {
       controllerOpt foreach {
         controller =>
           controller.openPort()
-          controller.setReadTimeout(50)
+          //@ c@ controller.setReadTimeout(50)
       }
     }
     catch {

@@ -1,8 +1,6 @@
 package org.nlogo.extensions.gogo.controller
 
-import java.io.IOException
-
-import gnu.io.{ SerialPort, UnsupportedCommOperationException }
+import jssc. {SerialPort, SerialPortEventListener}
 
 import Constants._
 
@@ -12,14 +10,14 @@ class Controller(override protected val portName: String)
   extends HasPortsAndStreams
   with PortCloser
   with PortOpener
-  with Reader
   with Waiter
   with OutputPortController
   with CommandWriter
   with SensorReader
-  with BurstReaderManager {
+  with BurstReaderManager
+  with SerialPortEventListener {
 
-  def currentPortName = portOpt map (_.getName) getOrElse "INVALID"
+  def currentPortName = portOpt map (_.getPortName) getOrElse "INVALID"
 
   def currentPort: Option[SerialPort] = portOpt
 
@@ -41,22 +39,5 @@ class Controller(override protected val portName: String)
     writeAndWait(CmdPwmServo, value.toByte)
   }
 
-  def setReadTimeout(ms: Int) {
-    try {
-      inputStreamOpt foreach {
-        _ synchronized {
-          portOpt foreach {
-            port =>
-              port.enableReceiveTimeout(ms)
-              inputStreamOpt = Option(port.getInputStream)
-          }
-        }
-      }
-    }
-    catch {
-      case e: UnsupportedCommOperationException => e.printStackTrace()
-      case e: IOException                       => e.printStackTrace()
-    }
-  }
 
 }

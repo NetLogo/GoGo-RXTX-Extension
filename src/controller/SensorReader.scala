@@ -8,7 +8,7 @@ import org.nlogo.api.ExtensionException
 
 trait SensorReader {
 
-  self: CommandWriter with Reader =>
+  self: CommandWriter =>
 
   def readSensor(sensor: Int): Int = readSensorHelper(sensor, SensorReadNormal)
 
@@ -17,7 +17,6 @@ trait SensorReader {
     if (sensor < 1)
       throw new ExtensionException("Sensor number out of range: " + sensor)
     else {
-
       val arr = {
         if (sensor > 8) {
           val highByte = ((sensor - 9) >> 8).toByte
@@ -27,16 +26,7 @@ trait SensorReader {
         else
           Array((CmdReadSensor | ((sensor - 1) << 2) | mode).toByte)
       }
-
-      try {
-        writeAndWaitForReplyHeader(arr: _*)
-        (readInt() << 8) + readInt()
-      }
-      catch {
-        case e: IOException =>
-          e.printStackTrace()
-          0
-      }
+      writeAndWaitForReplyHeader(arr: _*).getOrElse(0)
     }
 
   }

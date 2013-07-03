@@ -6,8 +6,6 @@ import Constants.{ AckByte, InHeader1, InHeader2 }
 
 trait Waiter {
 
-  self: Reader =>
-
   protected def waitForAck(): Boolean = {
     waitForReplyHeader()
     waitForByte(AckByte)

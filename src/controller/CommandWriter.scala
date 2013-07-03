@@ -1,44 +1,99 @@
 package org.nlogo.extensions.gogo.controller
 
-import java.io.IOException
-
-import Constants.{ OutHeader1, OutHeader2 }
+import jssc.{SerialPortEvent, SerialPortEventListener, SerialPortException }
+import org.nlogo.extensions.gogo.controller.Constants._
+import org.nlogo.api.ExtensionException
+import scala.Some
 
 trait CommandWriter {
 
-  self: Waiter with HasPortsAndStreams =>
+  self: Waiter with HasPortsAndStreams with SerialPortEventListener =>
 
-  protected def writeAndWait(bytes: Byte*): Boolean = {
-    writeCommand(bytes.toArray)
-    waitForAck()
+  import scala.actors.Actor
+
+  case class  Event(bytes: Array[Byte])
+  case class  Response(bytes: Option[Array[Byte]])
+  case object Request
+
+  protected val ackListener = new Actor {
+
+    var byteArrOpt: Option[Array[Byte]] = None
+
+    start()
+
+    override def act() {
+      loop {
+        receive {
+          case Event(bytes) =>
+            byteArrOpt = Option(bytes)
+          case Request =>
+            val result = byteArrOpt
+            byteArrOpt = None
+            reply(Response(result))
+        }
+      }
+    }
+
   }
 
-  protected def writeAndWaitForReplyHeader(bytes: Byte*): Boolean = {
+  protected def writeAndWait(bytes: Byte*): Boolean = {
+    setNewEventListener()
     writeCommand(bytes.toArray)
-    waitForReplyHeader()
+    !getResponse {
+      bytes =>
+        if (bytes.contains(Constants.AckByte))
+          Option(Constants.AckByte)
+        else
+          None
+    }.isEmpty
+  }
+
+  protected def getResponse(f: (Array[Byte]) => (Option[Int])) : Option[Int] = {
+    (ackListener !? Request) match {
+      case Response(None)        => getResponse(f)
+      case Response(Some(bytes)) => f(bytes)
+      case _                     => None
+    }
+  }
+
+  protected def writeAndWaitForReplyHeader(bytes: Byte*): Option[Int] = {
+    setNewEventListener()
+    writeCommand(bytes.toArray)
+    getResponse {
+      bytes =>
+        val output = bytes.dropWhile(_ != InHeader2).drop(1)
+        if (output.length >= 2)
+          Option(((output(0) << 8) + ((output(1) + 256) % 256)))
+        else
+          None
+    }
   }
 
   private def writeCommand(command: Array[Byte]) {
-    outputStreamOpt foreach {
-      os => os synchronized {
-        try {
-          writeByte(OutHeader1)
-          writeByte(OutHeader2)
-          os.write(command)
-        }
-        catch {
-          case e: IOException => e.printStackTrace()
-        }
+    val myPort = portOpt.getOrElse( throw new ExtensionException("hi"))
+    myPort synchronized {
+      try {
+        myPort.writeBytes(Array(OutHeader1,OutHeader2) ++ command)
+      }
+      catch {
+        case e: SerialPortException  => e.printStackTrace()
       }
     }
   }
 
-  private def writeByte(b: Byte) {
-    outputStreamOpt foreach {
-      os => synchronized {
-        os.write(b)
-      }
+
+  override def serialEvent(event: SerialPortEvent) {
+    val bytes = portOpt map (_.readBytes(event.getEventValue)) getOrElse (throw new ExtensionException("Boom")) //@ c@
+    ackListener ! Event(bytes)
+  }
+
+  private def setNewEventListener() {
+    val port = portOpt.getOrElse(throw new ExtensionException("No port available"))
+    try port.removeEventListener()
+    catch {
+      case ex: SerialPortException =>
     }
+    port.addEventListener(this)  //put right mask
   }
 
 }
