@@ -8,12 +8,6 @@ import Constants._
 
 import org.nlogo.api.ExtensionException
 
-//@ Rename WindowsInstaller
-//@ Rename primitives => name - "GoGo"
-//@ Change colon style on methods (no space)
-//@ Coreygogo?
-//@ Title case the constants
-
 class Controller(override protected val portName: String)
   extends HasPortsAndStreams
   with PortCloser
@@ -29,22 +23,22 @@ class Controller(override protected val portName: String)
 
   def currentPort: Option[SerialPort] = portOpt
 
-  def beep():           Boolean = portOpt map { _ => writeAndWait(CMD_BEEP, 0x00.toByte) } getOrElse false
-  def ping():           Boolean = portOpt map { _ => writeAndWait(CMD_PING) } getOrElse false
-  def led(on: Boolean): Boolean = portOpt map { _ => writeAndWait(if (on) CMD_LED_ON else CMD_LED_OFF, 0x00.toByte) } getOrElse false
+  def beep():           Boolean = portOpt map { _ => writeAndWait(CmdBeep, 0x00.toByte) } getOrElse false
+  def ping():           Boolean = portOpt map { _ => writeAndWait(CmdPing) } getOrElse false
+  def led(on: Boolean): Boolean = portOpt map { _ => writeAndWait(if (on) CmdLedOn else CmdLedOff, 0x00.toByte) } getOrElse false
 
   def talkToOutputPorts(outputPortMask: Int) {
-    writeAndWait(CMD_TALK_TO_OUTPUT_PORT, outputPortMask.toByte)
+    writeAndWait(CmdTalkToOutputPort, outputPortMask.toByte)
   }
 
   def setOutputPortPower(level: Int) {
     if ((level < 0) || (level > 7)) throw new ExtensionException("Power level out of range: " + level)
-    writeAndWait((CMD_OUTPUT_PORT_POWER | level << 2).toByte)
+    writeAndWait((CmdOutputPortPower | level << 2).toByte)
   }
 
   def setServoPosition(value: Int) {
     if ((value < 20) || (value > 40)) throw new ExtensionException("Requested servo position (%s) is out of safe range (20-40)".format(value))
-    writeAndWait(CMD_PWM_SERVO, value.toByte)
+    writeAndWait(CmdPwmServo, value.toByte)
   }
 
   def setReadTimeout(ms: Int) {

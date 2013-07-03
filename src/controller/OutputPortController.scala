@@ -7,27 +7,27 @@ trait OutputPortController {
   self: CommandWriter =>
 
   def outputPortOn() {
-    outputPortControl(CMD_OUTPUT_PORT_ON)
+    outputPortControl(CmdOutputPortOn)
   }
 
   def outputPortOff() {
-    outputPortControl(CMD_OUTPUT_PORT_OFF)
+    outputPortControl(CmdOutputPortOff)
   }
 
   def outputPortCoast() {
-    outputPortControl(CMD_OUTPUT_PORT_COAST)
+    outputPortControl(CmdOutputPortCoast)
   }
 
   def outputPortThatWay() {
-    outputPortControl(CMD_OUTPUT_PORT_THATWAY)
+    outputPortControl(CmdOutputPortThatWay)
   }
 
   def outputPortThisWay() {
-    outputPortControl(CMD_OUTPUT_PORT_THISWAY)
+    outputPortControl(CmdOutputPortThisWay)
   }
 
   def outputPortReverse() {
-    outputPortControl(CMD_OUTPUT_PORT_RD)
+    outputPortControl(CmdOutputPortRd)
   }
 
   private def outputPortControl(cmd: Byte) {

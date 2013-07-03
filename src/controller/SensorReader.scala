@@ -2,7 +2,7 @@ package org.nlogo.extensions.gogo.controller
 
 import java.io.IOException
 
-import Constants.{ CMD_READ_EXTENDED_SENSOR, CMD_READ_SENSOR, SENSOR_READ_NORMAL }
+import Constants.{ CmdReadExtendedSensor, CmdReadSensor, SensorReadNormal }
 
 import org.nlogo.api.ExtensionException
 
@@ -10,7 +10,7 @@ trait SensorReader {
 
   self: CommandWriter =>
 
-  def readSensor(sensor: Int): Int = readSensorHelper(sensor, SENSOR_READ_NORMAL)
+  def readSensor(sensor: Int): Int = readSensorHelper(sensor, SensorReadNormal)
 
   private def readSensorHelper(sensor: Int, mode: Int): Int = {
 
@@ -22,10 +22,10 @@ trait SensorReader {
         if (sensor > 8) {
           val highByte = ((sensor - 9) >> 8).toByte
           val lowByte  = ((sensor - 9) & 0xFF).toByte
-          Array(CMD_READ_EXTENDED_SENSOR, highByte, lowByte)
+          Array(CmdReadExtendedSensor, highByte, lowByte)
         }
         else
-          Array((CMD_READ_SENSOR | ((sensor - 1) << 2) | mode).toByte)
+          Array((CmdReadSensor | ((sensor - 1) << 2) | mode).toByte)
       }
 
       try {

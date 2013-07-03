@@ -20,8 +20,8 @@ trait BurstReaderManager {
 
   def stopBurstReader() {
     burstReaderOpt foreach (_.stopReading())
-    setBurstMode(0, BURST_SPEED_HIGH)
-    setBurstMode(0, BURST_SPEED_LOW) // Umm.. WHAT?! --JAB (7/2/13)
+    setBurstMode(0, BurstSpeedHigh)
+    setBurstMode(0, BurstSpeedLow) // Umm.. WHAT?! --JAB (7/2/13)
   }
 
   def getBurstValue(sensorNum: Int) : Int =
@@ -30,12 +30,12 @@ trait BurstReaderManager {
     else
       throw new ExtensionException("Sensor id %s is out of range, should be 1-8.".format(sensorNum))
 
-  def setBurstMode(sensorMask: Int, speed: Int = BURST_SPEED_HIGH) {
-    writeAndWait((CMD_SET_BURST_MODE | speed).toByte, sensorMask.toByte)
+  def setBurstMode(sensorMask: Int, speed: Int = BurstSpeedHigh) {
+    writeAndWait((CmdSetBurstMode | speed).toByte, sensorMask.toByte)
   }
 
   private def readBurstCycle() : Option[(Int, Int)] =
-    if (waitForByte(BURST_CHUNK_HEADER)) {
+    if (waitForByte(BurstChunkHeader)) {
 
       val (high, low) = (readInt(), readInt())
       val sensor      = (high >> 5) + 1

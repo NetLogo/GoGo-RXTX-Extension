@@ -2,7 +2,7 @@ package org.nlogo.extensions.gogo.controller
 
 import java.io.IOException
 
-import Constants.{ ACK_BYTE, IN_HEADER1, IN_HEADER2 }
+import Constants.{ AckByte, InHeader1, InHeader2 }
 
 trait Waiter {
 
@@ -10,14 +10,14 @@ trait Waiter {
 
   protected def waitForAck(): Boolean = {
     waitForReplyHeader()
-    waitForByte(ACK_BYTE)
+    waitForByte(AckByte)
   }
 
   protected def waitForReplyHeader(): Boolean =
     waitUntil {
       _ => readByte() match {
-        case IN_HEADER1 => readByte() == IN_HEADER2
-        case IN_HEADER2 => true
+        case InHeader1 => readByte() == InHeader2
+        case InHeader2 => true
         case _          => false
       }
     }

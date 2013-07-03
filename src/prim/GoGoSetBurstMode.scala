@@ -11,13 +11,13 @@ class GoGoSetBurstMode(manager: ControllerManager) extends ManagedCommand(manage
   override def getSyntax = Syntax.commandSyntax(Array(Syntax.ListType, Syntax.BooleanType))
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
     val mask  = sensorMask(args(0).getList.toVector)
-    val speed = if (args(1).getBoolean) BURST_SPEED_HIGH else BURST_SPEED_LOW
+    val speed = if (args(1).getBoolean) BurstSpeedHigh else BurstSpeedLow
     controller.setBurstMode(mask, speed)
     controller.startBurstReader(generateBurster)
   }
 
   private def sensorMask(sensors: Seq[_]) : Int = {
-    val sensorMap = Map('1' -> SENSOR_1, '2' -> SENSOR_2, '3' -> SENSOR_3, '4' -> SENSOR_4, '5' -> SENSOR_5, '6' -> SENSOR_6, '7' -> SENSOR_7, '8' -> SENSOR_8)
+    val sensorMap = Map('1' -> Sensor1, '2' -> Sensor2, '3' -> Sensor3, '4' -> Sensor4, '5' -> Sensor5, '6' -> Sensor6, '7' -> Sensor7, '8' -> Sensor8)
     buildMask(sensors, sensorMap)
   }
 

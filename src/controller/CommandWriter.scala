@@ -2,7 +2,7 @@ package org.nlogo.extensions.gogo.controller
 
 import java.io.IOException
 
-import Constants.{ OUT_HEADER1, OUT_HEADER2 }
+import Constants.{ OutHeader1, OutHeader2 }
 
 trait CommandWriter {
 
@@ -22,8 +22,8 @@ trait CommandWriter {
     outputStreamOpt foreach {
       os => os synchronized {
         try {
-          writeByte(OUT_HEADER1)
-          writeByte(OUT_HEADER2)
+          writeByte(OutHeader1)
+          writeByte(OutHeader2)
           os.write(command)
         }
         catch {
