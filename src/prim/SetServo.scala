@@ -5,9 +5,9 @@ import
     api.{ Argument, Context, Syntax },
     extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoBeep(manager: ControllerManager) extends ManagedCommand(manager) {
-  override def getSyntax = Syntax.commandSyntax
+class SetServo(manager: ControllerManager) extends ManagedCommand(manager) {
+  override def getSyntax = Syntax.commandSyntax(Array(Syntax.NumberType))
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
-    controller.beep()
+    controller.setServoPosition(args(0).getIntValue)
   }
 }

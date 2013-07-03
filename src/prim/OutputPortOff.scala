@@ -5,9 +5,9 @@ import
     api.{ Argument, Context, Syntax },
     extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoOutputPortPower(manager: ControllerManager) extends ManagedCommand(manager) {
-  override def getSyntax = Syntax.commandSyntax(Array(Syntax.NumberType))
+class OutputPortOff(manager: ControllerManager) extends ManagedCommand(manager) {
+  override def getSyntax = Syntax.commandSyntax
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
-    controller.setOutputPortPower(args(0).getIntValue)
+    controller.outputPortOff()
   }
 }

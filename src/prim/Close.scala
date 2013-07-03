@@ -5,7 +5,7 @@ import
     api.{ Argument, Context, Syntax },
     extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoClose(manager: ControllerManager) extends ManagedCommand(manager) {
+class Close(manager: ControllerManager) extends ManagedCommand(manager) {
   override def getSyntax = Syntax.commandSyntax
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
     manager.close()

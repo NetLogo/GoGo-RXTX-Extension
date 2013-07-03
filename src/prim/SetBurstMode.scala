@@ -6,7 +6,7 @@ import
     extensions.gogo.controller.{ BurstCycleHandler, Constants, Controller, ControllerManager },
       Constants._
 
-class GoGoSetBurstMode(manager: ControllerManager) extends ManagedCommand(manager) {
+class SetBurstMode(manager: ControllerManager) extends ManagedCommand(manager) {
 
   override def getSyntax = Syntax.commandSyntax(Array(Syntax.ListType, Syntax.BooleanType))
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {

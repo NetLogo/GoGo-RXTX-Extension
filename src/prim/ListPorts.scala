@@ -5,7 +5,7 @@ import
     api.{ Argument, Context, DefaultReporter, LogoList, Syntax },
     extensions.gogo.util.fetchPorts
 
-class GoGoListPorts extends DefaultReporter {
+class ListPorts extends DefaultReporter {
   override def getSyntax = Syntax.reporterSyntax(Syntax.ListType)
   override def report(args: Array[Argument], context: Context) = {
     try LogoList.fromIterator(fetchPorts().toIterator)

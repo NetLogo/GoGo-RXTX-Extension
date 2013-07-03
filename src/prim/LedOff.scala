@@ -5,9 +5,9 @@ import
     api.{ Argument, Context, Syntax },
     extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoOutputPortCoast(manager: ControllerManager) extends ManagedCommand(manager) {
+class LedOff(manager: ControllerManager) extends ManagedCommand(manager) {
   override def getSyntax = Syntax.commandSyntax
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
-    controller.outputPortCoast()
+    controller.led(false)
   }
 }

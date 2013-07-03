@@ -6,7 +6,7 @@ import
     extensions.gogo.controller.{ Constants, Controller, ControllerManager },
       Constants._
 
-class GoGoTalkToOutputPorts(manager: ControllerManager) extends ManagedCommand(manager) {
+class TalkToOutputPorts(manager: ControllerManager) extends ManagedCommand(manager) {
   override def getSyntax = Syntax.commandSyntax(Array(Syntax.ListType))
   override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
     val portMap  = Map('a' -> OutputPortA, 'b' -> OutputPortB, 'c' -> OutputPortC, 'd' -> OutputPortD)

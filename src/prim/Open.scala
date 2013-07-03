@@ -5,7 +5,7 @@ import
     api.{ Argument, Context, DefaultCommand, Syntax },
     extensions.gogo.controller.ControllerManager
 
-class GoGoOpen(manager: ControllerManager) extends DefaultCommand {
+class Open(manager: ControllerManager) extends DefaultCommand {
   override def getSyntax = Syntax.commandSyntax(Array(Syntax.StringType))
   override def perform(args: Array[Argument], context: Context) {
 

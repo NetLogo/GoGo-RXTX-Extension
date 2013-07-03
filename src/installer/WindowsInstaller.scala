@@ -12,7 +12,7 @@ import
     swing.OptionDialog,
     workspace.AbstractWorkspace
 
-object GoGoWindowsHandler {
+object WindowsInstaller {
 
   import Strings._
 

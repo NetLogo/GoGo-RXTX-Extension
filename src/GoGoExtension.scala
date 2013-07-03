@@ -5,7 +5,7 @@ import java.util.{ List => JList }
 
 import controller.ControllerManager
 
-import installer.GoGoWindowsHandler
+import installer.WindowsInstaller
 
 import org.nlogo.api.{ DefaultClassManager, ExtensionException, ExtensionManager, PrimitiveManager }
 
@@ -15,33 +15,33 @@ class GoGoExtension extends DefaultClassManager {
 
   override def load(primManager: PrimitiveManager) {
     import prim._
-    primManager.addPrimitive("install",               new GoGoInstall)
-    primManager.addPrimitive("ports",                 new GoGoListPorts)
-    primManager.addPrimitive("open",                  new GoGoOpen(manager))
-    primManager.addPrimitive("open?",                 new GoGoIsOpen(manager))
-    primManager.addPrimitive("close",                 new GoGoClose(manager))
-    primManager.addPrimitive("ping",                  new GoGoPing(manager))
-    primManager.addPrimitive("output-port-on",        new GoGoOutputPortOn(manager))
-    primManager.addPrimitive("output-port-off",       new GoGoOutputPortOff(manager))
-    primManager.addPrimitive("output-port-coast",     new GoGoOutputPortCoast(manager))
-    primManager.addPrimitive("output-port-thisway",   new GoGoOutputPortThisWay(manager))
-    primManager.addPrimitive("output-port-thatway",   new GoGoOutputPortThatWay(manager))
-    primManager.addPrimitive("set-output-port-power", new GoGoOutputPortPower(manager))
-    primManager.addPrimitive("output-port-reverse",   new GoGoOutputPortReverse(manager))
-    primManager.addPrimitive("talk-to-output-ports",  new GoGoTalkToOutputPorts(manager))
-    primManager.addPrimitive("set-burst-mode",        new GoGoSetBurstMode(manager))
-    primManager.addPrimitive("stop-burst-mode",       new GoGoStopBurstMode(manager))
-    primManager.addPrimitive("burst-value",           new GoGoSensorBurstValue(manager))
-    primManager.addPrimitive("sensor",                new GoGoSensor(manager))
-    primManager.addPrimitive("beep",                  new GoGoBeep(manager))
-    primManager.addPrimitive("led-on",                new GoGoLedOn(manager))
-    primManager.addPrimitive("led-off",               new GoGoLedOff(manager))
-    primManager.addPrimitive("set-servo",             new GoGoSetServo(manager))
+    primManager.addPrimitive("install",               new Install)
+    primManager.addPrimitive("ports",                 new ListPorts)
+    primManager.addPrimitive("open",                  new Open(manager))
+    primManager.addPrimitive("open?",                 new IsOpen(manager))
+    primManager.addPrimitive("close",                 new Close(manager))
+    primManager.addPrimitive("ping",                  new Ping(manager))
+    primManager.addPrimitive("output-port-on",        new OutputPortOn(manager))
+    primManager.addPrimitive("output-port-off",       new OutputPortOff(manager))
+    primManager.addPrimitive("output-port-coast",     new OutputPortCoast(manager))
+    primManager.addPrimitive("output-port-thisway",   new OutputPortThisWay(manager))
+    primManager.addPrimitive("output-port-thatway",   new OutputPortThatWay(manager))
+    primManager.addPrimitive("set-output-port-power", new OutputPortPower(manager))
+    primManager.addPrimitive("output-port-reverse",   new OutputPortReverse(manager))
+    primManager.addPrimitive("talk-to-output-ports",  new TalkToOutputPorts(manager))
+    primManager.addPrimitive("set-burst-mode",        new SetBurstMode(manager))
+    primManager.addPrimitive("stop-burst-mode",       new StopBurstMode(manager))
+    primManager.addPrimitive("burst-value",           new SensorBurstValue(manager))
+    primManager.addPrimitive("sensor",                new Sensor(manager))
+    primManager.addPrimitive("beep",                  new Beep(manager))
+    primManager.addPrimitive("led-on",                new LedOn(manager))
+    primManager.addPrimitive("led-off",               new LedOff(manager))
+    primManager.addPrimitive("set-servo",             new SetServo(manager))
   }
 
   override def runOnce(em: ExtensionManager) {
     em.addToLibraryPath(this, "lib")
-    GoGoWindowsHandler(true)
+    WindowsInstaller(true)
   }
 
   override def unload(em: ExtensionManager) {

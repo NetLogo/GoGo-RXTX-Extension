@@ -5,7 +5,7 @@ import
     api.{ Argument, Context, DefaultReporter, Syntax },
     extensions.gogo.controller.ControllerManager
 
-class GoGoIsOpen(manager: ControllerManager) extends DefaultReporter {
+class IsOpen(manager: ControllerManager) extends DefaultReporter {
   override def getSyntax = Syntax.reporterSyntax(Syntax.BooleanType)
   override def report(args: Array[Argument], context: Context) = {
     val isOpen = manager.getControllerOpt.flatMap(controller => Option(controller.currentPort)).isEmpty
