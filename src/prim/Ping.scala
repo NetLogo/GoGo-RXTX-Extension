@@ -8,5 +8,5 @@ import
 class Ping(manager: ControllerManager) extends ManagedReporter(manager) {
   override def getSyntax = Syntax.reporterSyntax(Syntax.BooleanType)
   override def managedReport(args: Array[Argument], context: Context, controller: Controller) =
-    Boolean.box(controller != null && controller.ping())
+    Boolean.box(controller.ping())
 }

@@ -8,7 +8,7 @@ import org.nlogo.api.ExtensionException
 
 trait SensorReader {
 
-  self: CommandWriter =>
+  self: CommandWriter with Reader =>
 
   def readSensor(sensor: Int): Int = readSensorHelper(sensor, SensorReadNormal)
 
@@ -30,7 +30,7 @@ trait SensorReader {
 
       try {
         writeAndWaitForReplyHeader(arr: _*)
-        (readInt << 8) + readInt
+        (readInt() << 8) + readInt()
       }
       catch {
         case e: IOException =>
