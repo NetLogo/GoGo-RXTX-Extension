@@ -26,7 +26,7 @@ trait SensorReader {
         else
           Array((CmdReadSensor | ((sensor - 1) << 2) | mode).toByte)
       }
-      writeAndWaitForReplyHeader(arr: _*).getOrElse(0)
+      writeAndWaitForReplyHeader(arr: _*).getOrElse(-1)
     }
 
   }

@@ -48,6 +48,7 @@ class GoGoExtension extends DefaultClassManager {
 
     import java.util.{ Vector => JVector }
 
+
     manager.close()
 
     try {
@@ -78,7 +79,7 @@ class GoGoExtension extends DefaultClassManager {
 
   override def additionalJars: JList[String] = {
     import scala.collection.JavaConverters.seqAsJavaListConverter
-    List("RXTXcomm.jar").asJava
+    List("jssc-2.6.0.jar").asJava
   }
 
 }

@@ -15,7 +15,7 @@ trait CommandWriter {
   case class  Response(bytes: Option[Array[Byte]])
   case object Request
 
-  protected val ackListener = new Actor {
+  protected val portListener = new Actor {
 
     var byteArrOpt: Option[Array[Byte]] = None
 
@@ -43,13 +43,15 @@ trait CommandWriter {
       bytes =>
         if (bytes.contains(Constants.AckByte))
           Option(Constants.AckByte)
-        else
+        else {
+          println("Expected ACK, got:" + bytes.mkString("::"))
           None
+        }
     }.isEmpty
   }
 
   protected def getResponse(f: (Array[Byte]) => (Option[Int])) : Option[Int] = {
-    (ackListener !? Request) match {
+    (portListener !? Request) match {
       case Response(None)        => getResponse(f)
       case Response(Some(bytes)) => f(bytes)
       case _                     => None
@@ -62,8 +64,11 @@ trait CommandWriter {
     getResponse {
       bytes =>
         val output = bytes.dropWhile(_ != InHeader2).drop(1)
-        if (output.length >= 2)
-          Option(((output(0) << 8) + ((output(1) + 256) % 256)))
+        if (output.length >= 2) {
+          val reading = ((output(0) << 8) + ((output(1) + 256) % 256))
+          println(output.mkString("::"))
+          Option(reading)
+        }
         else
           None
     }
@@ -84,7 +89,7 @@ trait CommandWriter {
 
   override def serialEvent(event: SerialPortEvent) {
     val bytes = portOpt map (_.readBytes(event.getEventValue)) getOrElse (throw new ExtensionException("Boom")) //@ c@
-    ackListener ! Event(bytes)
+    portListener ! Event(bytes)
   }
 
   private def setNewEventListener() {
