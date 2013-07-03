@@ -1,11 +1,13 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultCommand, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoSetServo extends DefaultCommand {
+class GoGoSetServo(manager: ControllerManager) extends ManagedCommand(manager) {
   override def getSyntax = Syntax.commandSyntax(Array(Syntax.NumberType))
-  override def perform(args: Array[Argument], context: Context) {
-    ensureGoGoPort()
+  override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
     controller.setServoPosition(args(0).getIntValue)
   }
 }

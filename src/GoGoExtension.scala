@@ -1,87 +1,54 @@
 /** (c) 2004 Uri Wilensky. See README.txt for terms of use. **/
 package org.nlogo.extensions.gogo
 
+import java.util.{ List => JList }
+
+import controller.ControllerManager
+
 import installer.GoGoWindowsHandler
 
-import org.nlogo.api.{ ExtensionException, ExtensionManager, PrimitiveManager }
+import org.nlogo.api.{ DefaultClassManager, ExtensionException, ExtensionManager, PrimitiveManager }
 
-object GoGoExtension {
+class GoGoExtension extends DefaultClassManager {
 
-  var controllerOpt: Option[GoGoController]                    = None
-  var bursterOpt:    Option[GoGoExtension.NLBurstCycleHandler] = None
-
-  def runWindowsInstaller(verify: Boolean) {
-    if (System.getProperty("os.name").startsWith("Windows"))
-      GoGoWindowsHandler.run(verify)
-  }
-
-  def ensureGoGoPort() {
-    controllerOpt flatMap (controller => Option(controller.currentPort)) orElse (throw new ExtensionException("No GoGo port open."))
-  }
-
-  def close() {
-    controllerOpt foreach {
-      controller =>
-        Option(controller.currentPort) foreach (_ => controller.closePort())
-        controllerOpt = None
-    }
-  }
-
-  def initController(portName: String) {
-    controllerOpt = Option(new GoGoController(portName))
-  }
-
-  class NLBurstCycleHandler extends GoGoController.BurstCycleHandler {
-
-    private val sensorValues = new Array[Int](8)
-
-    def getValue(sensor: Int) : Int = sensorValues(sensor - 1)
-    def handleBurstCycle(sensor: Int, value: Int) {
-      sensorValues(sensor - 1) = value
-    }
-
-  }
-
-}
-
-class GoGoExtension extends org.nlogo.api.DefaultClassManager {
+  private val manager = new ControllerManager
 
   override def load(primManager: PrimitiveManager) {
     import prim._
-    primManager.addPrimitive("ports",                 new GoGoListPorts)
-    primManager.addPrimitive("open",                  new GoGoOpen)
-    primManager.addPrimitive("open?",                 new GoGoOpenPredicate)
-    primManager.addPrimitive("close",                 new GoGoClose)
-    primManager.addPrimitive("ping",                  new GoGoPing)
-    primManager.addPrimitive("output-port-on",        new GoGoOutputPortOn)
-    primManager.addPrimitive("output-port-off",       new GoGoOutputPortOff)
-    primManager.addPrimitive("output-port-coast",     new GoGoOutputPortCoast)
-    primManager.addPrimitive("output-port-thisway",   new GoGoOutputPortThisWay)
-    primManager.addPrimitive("output-port-thatway",   new GoGoOutputPortThatWay)
-    primManager.addPrimitive("set-output-port-power", new GoGoOutputPortPower)
-    primManager.addPrimitive("output-port-reverse",   new GoGoOutputPortReverse)
-    primManager.addPrimitive("talk-to-output-ports",  new GoGoTalkToOutputPorts)
-    primManager.addPrimitive("set-burst-mode",        new GoGoSetBurstMode)
-    primManager.addPrimitive("stop-burst-mode",       new GoGoStopBurstMode)
-    primManager.addPrimitive("burst-value",           new GoGoSensorBurstValue)
-    primManager.addPrimitive("sensor",                new GoGoSensor)
-    primManager.addPrimitive("beep",                  new GoGoBeep)
-    primManager.addPrimitive("led-on",                new GoGoLedOn)
-    primManager.addPrimitive("led-off",               new GoGoLedOff)
     primManager.addPrimitive("install",               new GoGoInstall)
-    primManager.addPrimitive("set-servo",             new GoGoSetServo)
+    primManager.addPrimitive("ports",                 new GoGoListPorts)
+    primManager.addPrimitive("open",                  new GoGoOpen(manager))
+    primManager.addPrimitive("open?",                 new GoGoIsOpen(manager))
+    primManager.addPrimitive("close",                 new GoGoClose(manager))
+    primManager.addPrimitive("ping",                  new GoGoPing(manager))
+    primManager.addPrimitive("output-port-on",        new GoGoOutputPortOn(manager))
+    primManager.addPrimitive("output-port-off",       new GoGoOutputPortOff(manager))
+    primManager.addPrimitive("output-port-coast",     new GoGoOutputPortCoast(manager))
+    primManager.addPrimitive("output-port-thisway",   new GoGoOutputPortThisWay(manager))
+    primManager.addPrimitive("output-port-thatway",   new GoGoOutputPortThatWay(manager))
+    primManager.addPrimitive("set-output-port-power", new GoGoOutputPortPower(manager))
+    primManager.addPrimitive("output-port-reverse",   new GoGoOutputPortReverse(manager))
+    primManager.addPrimitive("talk-to-output-ports",  new GoGoTalkToOutputPorts(manager))
+    primManager.addPrimitive("set-burst-mode",        new GoGoSetBurstMode(manager))
+    primManager.addPrimitive("stop-burst-mode",       new GoGoStopBurstMode(manager))
+    primManager.addPrimitive("burst-value",           new GoGoSensorBurstValue(manager))
+    primManager.addPrimitive("sensor",                new GoGoSensor(manager))
+    primManager.addPrimitive("beep",                  new GoGoBeep(manager))
+    primManager.addPrimitive("led-on",                new GoGoLedOn(manager))
+    primManager.addPrimitive("led-off",               new GoGoLedOff(manager))
+    primManager.addPrimitive("set-servo",             new GoGoSetServo(manager))
   }
 
   override def runOnce(em: ExtensionManager) {
     em.addToLibraryPath(this, "lib")
-    runWindowsInstaller(true)
+    GoGoWindowsHandler(true)
   }
 
   override def unload(em: ExtensionManager) {
 
     import java.util.{ Vector => JVector }
 
-    close()
+    manager.close()
 
     try {
 
@@ -89,12 +56,17 @@ class GoGoExtension extends org.nlogo.api.DefaultClassManager {
       val field       = classOf[ClassLoader].getDeclaredField("nativeLibraries")
       field.setAccessible(true)
 
-      import scala.collection.JavaConverters.iterableAsScalaIterableConverter
-      field.get(classLoader).asInstanceOf[JVector[_]].asScala.foreach {
-        lib =>
-          val finalize = lib.getClass.getDeclaredMethod("finalize", Seq[Class[_]](): _*)
-          finalize.setAccessible(true)
-          finalize.invoke(lib)
+      field.get(classLoader) match {
+        case libs: JVector[_] =>
+          import scala.collection.JavaConverters.iterableAsScalaIterableConverter
+          libs.asScala.foreach {
+            lib =>
+              val finalize = lib.getClass.getDeclaredMethod("finalize")
+              finalize.setAccessible(true)
+              finalize.invoke(lib)
+          }
+        case _ =>
+          throw new ExtensionException("Failed to reflectively cast libraries to `JVector`")
       }
 
     }
@@ -104,6 +76,9 @@ class GoGoExtension extends org.nlogo.api.DefaultClassManager {
 
   }
 
-  override def additionalJars: List[String] = List("RXTXcomm.jar")
+  override def additionalJars: JList[String] = {
+    import scala.collection.JavaConverters.seqAsJavaListConverter
+    List("RXTXcomm.jar").asJava
+  }
 
 }

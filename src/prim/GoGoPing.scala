@@ -1,9 +1,12 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultReporter, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoPing extends DefaultReporter {
+class GoGoPing(manager: ControllerManager) extends ManagedReporter(manager) {
   override def getSyntax = Syntax.reporterSyntax(Syntax.BooleanType)
-  override def report(args: Array[Argument], context: Context) =
+  override def managedReport(args: Array[Argument], context: Context, controller: Controller) =
     Boolean.box(controller != null && controller.ping())
 }

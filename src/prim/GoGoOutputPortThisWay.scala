@@ -1,11 +1,13 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultCommand, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoOutputPortThisWay extends DefaultCommand {
+class GoGoOutputPortThisWay(manager: ControllerManager) extends ManagedCommand(manager) {
   override def getSyntax = Syntax.commandSyntax
-  override def perform(args: Array[Argument], context: Context) {
-    ensureGoGoPort()
+  override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
     controller.outputPortThisWay()
   }
 }

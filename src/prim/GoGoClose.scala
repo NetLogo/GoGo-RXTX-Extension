@@ -1,13 +1,13 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultCommand, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoClose extends DefaultCommand {
+class GoGoClose(manager: ControllerManager) extends ManagedCommand(manager) {
   override def getSyntax = Syntax.commandSyntax
-  override def perform(args: Array[Argument], context: Context) {
-    try close()
-    catch {
-      case e: RuntimeException => throw new EE("Cannot close port: %s : %s".format(controller.currentPortName, e.getLocalizedMessage))
-    }
+  override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
+    manager.close()
   }
 }

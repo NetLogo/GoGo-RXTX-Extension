@@ -1,13 +1,12 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultReporter, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoSensor extends DefaultReporter {
+class GoGoSensor(manager: ControllerManager) extends ManagedReporter(manager) {
   override def getSyntax = Syntax.reporterSyntax(Array(Syntax.NumberType), Syntax.NumberType)
-  override def report(args: Array[Argument], context: Context) = {
-    try Double.box(controller.readSensor(args(0).getIntValue))
-    catch {
-      case e: RuntimeException => Double.box(0)
-    }
-  }
+  override def managedReport(args: Array[Argument], context: Context, controller: Controller) =
+    Double.box(controller.readSensor(args(0).getIntValue))
 }

@@ -1,18 +1,12 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultReporter, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoSensorBurstValue extends DefaultReporter {
+class GoGoSensorBurstValue(manager: ControllerManager) extends ManagedReporter(manager) {
   override def getSyntax = Syntax.reporterSyntax(Array(Syntax.NumberType), Syntax.NumberType)
-  override def report(args: Array[Argument], context: Context) = {
-    val sensor = args(0).getIntValue
-    if (burstCycleHandler != null) {
-      if (sensor > 0 && sensor < 9)
-        Double.box(burstCycleHandler.getValue(sensor))
-      else
-        throw new EE("Sensor id %s is out of range, should be 1-8.".format(sensor))
-    }
-    else
-      throw new EE("Burst Mode is not set, use set-burst-mode to turn on burst mode for specific sensors.")
-  }
+  override def managedReport(args: Array[Argument], context: Context, controller: Controller) =
+    Double.box(controller.getBurstValue(args(0).getIntValue))
 }

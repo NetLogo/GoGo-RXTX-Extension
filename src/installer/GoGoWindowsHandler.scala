@@ -16,10 +16,12 @@ object GoGoWindowsHandler {
 
   import Strings._
 
-  def run(verify: Boolean = true) {
-    val baseDirPath = new File(this.getClass.getProtectionDomain.getCodeSource.getLocation.getFile).getParent
-    val fileSep = System.getProperty("file.separator")
-    verifyDriverValidity(baseDirPath, fileSep, verify)
+  def apply(verify: Boolean) {
+    if (System.getProperty("os.name").startsWith("Windows")) {
+      val baseDirPath = new File(this.getClass.getProtectionDomain.getCodeSource.getLocation.getFile).getParent
+      val fileSep = System.getProperty("file.separator")
+      verifyDriverValidity(baseDirPath, fileSep, verify)
+    }
   }
 
   private def deviceNeedsInstallation: Boolean = {

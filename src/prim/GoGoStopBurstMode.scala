@@ -1,13 +1,13 @@
 package org.nlogo.extensions.gogo.prim
 
-import org.nlogo.api.{ Argument, Context, DefaultCommand, Syntax }
+import
+  org.nlogo.{ api, extensions },
+    api.{ Argument, Context, Syntax },
+    extensions.gogo.controller.{ Controller, ControllerManager }
 
-class GoGoStopBurstMode extends DefaultCommand {
-  override def getSyntax = Syntax.commandSyntax(Array[Int]())
-  override def perform(args: Array[Argument], context: Context) {
+class GoGoStopBurstMode(manager: ControllerManager) extends ManagedCommand(manager) {
+  override def getSyntax = Syntax.commandSyntax
+  override def managedPerform(args: Array[Argument], context: Context, controller: Controller) {
     controller.stopBurstReader()
-    burstCycleHandler = null
-    controller.setBurstMode(0, GoGoController.BURST_SPEED_HIGH)
-    controller.setBurstMode(0, GoGoController.BURST_SPEED_LOW)
   }
 }
