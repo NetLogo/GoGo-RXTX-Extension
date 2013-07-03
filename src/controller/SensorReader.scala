@@ -1,7 +1,5 @@
 package org.nlogo.extensions.gogo.controller
 
-import java.io.IOException
-
 import Constants.{ CmdReadExtendedSensor, CmdReadSensor, SensorReadNormal }
 
 import org.nlogo.api.ExtensionException
