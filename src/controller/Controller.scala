@@ -21,6 +21,8 @@ class Controller(override protected val portName: String)
 
   def currentPort: Option[SerialPort] = portOpt
 
+  //@ c@ per googo board protocol doc, ping returns an ack PLUS 3 version bytes.  however, these are quite often corrupted/truncated.
+  //so we are just checking for the ack part in the writeAndWait() method (more rigorous check yielded many false failures on ping). CEB 7/3/13
   def ping():           Boolean = portOpt map { _ => writeAndWait(CmdPing) } getOrElse false
   def beep():           Boolean = portOpt map { _ => writeAndWait(CmdBeep, 0x00.toByte) } getOrElse false
   def led(on: Boolean): Boolean = portOpt map { _ => writeAndWait(if (on) CmdLedOn else CmdLedOff, 0x00.toByte) } getOrElse false

@@ -21,6 +21,11 @@ trait CommandWriter {
 
     start()
 
+    //@ c@ added because a message can come in after the first 'harvest' of it.  this leads to stale bytes in the ArrOpt.
+    def purgeMe() {
+      byteArrOpt = None
+    }
+
     override def act() {
       loop {
         receive {
@@ -31,7 +36,7 @@ trait CommandWriter {
             byteArrOpt = None
             //@ c@ PROBLEM --> it's possible (and it happens) for a late-arriving second serial event to come in at this point
             //this loads the actor with bytes pertinent to the PRIOR read (which will have failed, lacking those important bytes)
-            //so we often get 2 bad reads in a row.
+            //so we often get 2 bad reads in a row. purgeMe added for this reason. CEB 7/3/13
             reply(Response(result))
         }
       }
@@ -47,6 +52,7 @@ trait CommandWriter {
         if (bytes.contains(Constants.AckByte))
           Option(Constants.AckByte)
         else {
+          //@ c@ for debugging and protocol analysis. CEB 7/3/13
           println("Expected ACK, got:" + bytes.mkString("::"))
           None
         }
@@ -79,7 +85,7 @@ trait CommandWriter {
 
 
   private def writeCommand(command: Array[Byte]) {
-    val myPort = portOpt.getOrElse( throw new ExtensionException("hi"))
+    val myPort = portOpt.getOrElse( throw new ExtensionException("Error in writing to " + portName))
     myPort synchronized {
       try {
         myPort.writeBytes(Array(OutHeader1,OutHeader2) ++ command)
@@ -95,7 +101,7 @@ trait CommandWriter {
     val bytes = portOpt map (_.readBytes(event.getEventValue)) getOrElse (throw new ExtensionException("Boom")) //@ c@
     //@ c@ remove debugging --> but this is how to see that we sometimes get partial replies in multiple serial events.
     // the jssc branch code handles this by keeping around a "leftover" array and by looking for all possible messages always.
-    // different logic is needed here, given the difference in communications architecture.
+    // different logic is needed here, given the difference in communications architecture. CEB 7/3/13
     println( "serial event: " + bytes.mkString("::") )
     portListener ! Event(bytes)
   }
@@ -104,13 +110,14 @@ trait CommandWriter {
     val port = portOpt.getOrElse(throw new ExtensionException("No port available"))
     try {
       port.removeEventListener()
-      //@ c@ This is to clean the port from any data that has come in while there were no listeners attached.
+      //@ c@ These two lines are to clean the port from any data that has come in while there were no listeners attached. CEB 7/3/13
+      portListener.purgeMe
       port.purgePort(SerialPort.PURGE_RXCLEAR | SerialPort.PURGE_TXCLEAR)
     }
     catch {
       case ex: SerialPortException =>
     }
-    port.addEventListener(this)  //put right mask
+    port.addEventListener(this)
   }
 
 }
