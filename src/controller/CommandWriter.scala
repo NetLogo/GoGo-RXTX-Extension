@@ -25,7 +25,7 @@ trait CommandWriter {
     var anyNews: Boolean = false
     var usingTimer: Boolean = false
     var clock: Long = 0
-    val timeout = 250
+    val timeout = 100
     start()
 
     //@ c@ added because a message can come in after the first 'harvest' of it.  this leads to stale bytes in the ArrOpt.
@@ -132,14 +132,19 @@ trait CommandWriter {
     val candidate = getResponse(lookForSensorValue)
     candidate.foreach{
       value => staleValues(sensorArrayIndex) = value
-               System.err.println("Stale values are now " + staleValues.mkString(","))
+         System.err.println("Updating Stale value cache.  now " + staleValues.mkString(","))
     }
     candidate.orElse{
       System.err.println( "=================>re-calling into getResponse" )
       portListener.startClock()
-      getResponse(lookForSensorValue).orElse {
-        System.err.println("=======> NO GOOD DATA, ABOUT TO SEND STALE VALUE:" + staleValues(sensorArrayIndex))
-        Option(-5) //staleValues(sensorArrayIndex))
+      val aRetry = getResponse(lookForSensorValue)
+      aRetry.foreach{
+        value => staleValues(sensorArrayIndex) = value
+           System.err.println("Updating Stale value cache (on retry). " + staleValues.mkString(","))
+      }
+      aRetry.orElse {
+        System.err.println("=======> NO valid response, Sending cached STALE VALUE:" + staleValues(sensorArrayIndex))
+        Option(staleValues(sensorArrayIndex))
       }
     }
   }
