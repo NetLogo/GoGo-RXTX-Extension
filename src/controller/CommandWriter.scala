@@ -22,39 +22,61 @@ trait CommandWriter {
   protected val portListener = new Actor {
 
     var byteArrOpt: Option[Array[Byte]] = None
-    var counter: Int = 0
-
+    var anyNews: Boolean = false
+    var usingTimer: Boolean = false
+    var clock: Long = 0
+    val timeout = 250
     start()
 
     //@ c@ added because a message can come in after the first 'harvest' of it.  this leads to stale bytes in the ArrOpt.
     def purgeMe() {
       byteArrOpt = None
-      counter = 0
+      usingTimer = false
+      anyNews = false
     }
 
-    def hasWaitedSincePurge: Boolean = {
-      System.err.println("+++++++++++CHECKING value of counter, which = " + counter)
-      counter != 0
+    def startClock() {
+      clock = System.currentTimeMillis()
+      System.err.println("Used timer.  timer initialized ")
+      usingTimer = true
     }
-    def deferReply() { counter = counter + 1 }
+
+    def timedOut(): Boolean = {
+      //( usingTimer && (System.currentTimeMillis() - clock) > timeout )
+      if ( usingTimer ) {
+        if ((System.currentTimeMillis() - clock) > timeout) {
+          System.err.println("timer expired")
+          true
+        }
+        else
+          false
+      } else
+        false
+    }
 
     override def act() {
       loop {
         receive {
           case Event(bytes) =>
+            anyNews = true
             val priorMessageFrag = byteArrOpt.getOrElse(Array[Byte]())
             val accumulationArr = priorMessageFrag ++ bytes
             byteArrOpt = Option(accumulationArr)
           case Request =>
-            val result = byteArrOpt
-            //byteArrOpt = None
-            //@ c@ PROBLEM --> it's possible (and it happens) for a late-arriving second serial event to come in at this point
-            //this loads the actor with bytes pertinent to the PRIOR read (which would fail, lacking those important bytes)
-            //We need 2 solutions to this . first, clearing old stuff before writing our serial request so we don't have initial garbage.
-            //purgeMe added for this reason. CEB 7/3/13
-            //Second, the reverse.  waiting till a packet completes, if possible.  for this reason, a 2-try solution is attempted
-            //in the wait for replyheader below, and the clear of byteArrayOpt is deferred till the data is accepted..
-            reply(Response(result))
+            if (anyNews || timedOut() ) {
+              val result = byteArrOpt
+              //byteArrOpt = None
+              //@ c@ PROBLEM --> it's possible (and it happens) for a late-arriving second serial event to come in at this point
+              //this loads the actor with bytes pertinent to the PRIOR read (which would fail, lacking those important bytes)
+              //We need 2 solutions to this . first, clearing old stuff before writing our serial request so we don't have initial garbage.
+              //purgeMe added for this reason. CEB 7/3/13
+              //Second, the reverse.  waiting till a packet completes, if possible.  for this reason, a 2-try solution is attempted
+              //in the wait for replyheader below, and the clear of byteArrayOpt is deferred till the data is accepted..
+              anyNews = false
+              reply(Response(result))
+            } else {
+              reply(Response(None))
+            }
           //case Cleaner =>
           //  purgeMe()
         }
@@ -99,7 +121,7 @@ trait CommandWriter {
         Option(reading)
       }
       else {
-        System.err.println("====>ABOUT TO USE COUNTER MECHANISM where bytes were: " + output.mkString("::"))
+        System.err.println("====>ABOUT TO RETURN 'NONE' and trigger retry mechanism.  Bytes were: " + output.mkString("::"))
         None
       }
   }
@@ -108,16 +130,16 @@ trait CommandWriter {
     setNewEventListener()
     writeCommand(bytes.toArray)
     val candidate = getResponse(lookForSensorValue)
-    candidate.foreach( value => staleValues(sensorArrayIndex) = value )
+    candidate.foreach{
+      value => staleValues(sensorArrayIndex) = value
+               System.err.println("Stale values are now " + staleValues.mkString(","))
+    }
     candidate.orElse{
-      if (portListener.hasWaitedSincePurge) {
-        System.err.println("=======>USING STALE VALUE:" + staleValues(sensorArrayIndex))
-        Option(staleValues(sensorArrayIndex))
-      }
-      else {
-        portListener.deferReply()
-        System.err.println( "=================>re-called into getResponse" )
-        getResponse(lookForSensorValue)
+      System.err.println( "=================>re-calling into getResponse" )
+      portListener.startClock()
+      getResponse(lookForSensorValue).orElse {
+        System.err.println("=======> NO GOOD DATA, ABOUT TO SEND STALE VALUE:" + staleValues(sensorArrayIndex))
+        Option(-5) //staleValues(sensorArrayIndex))
       }
     }
   }
