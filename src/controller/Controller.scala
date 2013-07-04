@@ -21,8 +21,8 @@ class Controller(override protected val portName: String)
 
   def currentPort: Option[SerialPort] = portOpt
 
-  def beep():           Boolean = portOpt map { _ => writeAndWait(CmdBeep, 0x00.toByte) } getOrElse false
   def ping():           Boolean = portOpt map { _ => writeAndWait(CmdPing) } getOrElse false
+  def beep():           Boolean = portOpt map { _ => writeAndWait(CmdBeep, 0x00.toByte) } getOrElse false
   def led(on: Boolean): Boolean = portOpt map { _ => writeAndWait(if (on) CmdLedOn else CmdLedOff, 0x00.toByte) } getOrElse false
 
   def talkToOutputPorts(outputPortMask: Int) {

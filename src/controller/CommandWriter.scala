@@ -1,6 +1,6 @@
 package org.nlogo.extensions.gogo.controller
 
-import jssc.{SerialPortEvent, SerialPortEventListener, SerialPortException }
+import jssc.{SerialPortEvent, SerialPortEventListener, SerialPortException, SerialPort }
 import org.nlogo.extensions.gogo.controller.Constants._
 import org.nlogo.api.ExtensionException
 import scala.Some
@@ -29,6 +29,9 @@ trait CommandWriter {
           case Request =>
             val result = byteArrOpt
             byteArrOpt = None
+            //@ c@ PROBLEM --> it's possible (and it happens) for a late-arriving second serial event to come in at this point
+            //this loads the actor with bytes pertinent to the PRIOR read (which will have failed, lacking those important bytes)
+            //so we often get 2 bad reads in a row.
             reply(Response(result))
         }
       }
@@ -74,6 +77,7 @@ trait CommandWriter {
     }
   }
 
+
   private def writeCommand(command: Array[Byte]) {
     val myPort = portOpt.getOrElse( throw new ExtensionException("hi"))
     myPort synchronized {
@@ -89,12 +93,20 @@ trait CommandWriter {
 
   override def serialEvent(event: SerialPortEvent) {
     val bytes = portOpt map (_.readBytes(event.getEventValue)) getOrElse (throw new ExtensionException("Boom")) //@ c@
+    //@ c@ remove debugging --> but this is how to see that we sometimes get partial replies in multiple serial events.
+    // the jssc branch code handles this by keeping around a "leftover" array and by looking for all possible messages always.
+    // different logic is needed here, given the difference in communications architecture.
+    println( "serial event: " + bytes.mkString("::") )
     portListener ! Event(bytes)
   }
 
   private def setNewEventListener() {
     val port = portOpt.getOrElse(throw new ExtensionException("No port available"))
-    try port.removeEventListener()
+    try {
+      port.removeEventListener()
+      //@ c@ This is to clean the port from any data that has come in while there were no listeners attached.
+      port.purgePort(SerialPort.PURGE_RXCLEAR | SerialPort.PURGE_TXCLEAR)
+    }
     catch {
       case ex: SerialPortException =>
     }

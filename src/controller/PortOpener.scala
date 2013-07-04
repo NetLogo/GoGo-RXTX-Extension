@@ -15,7 +15,7 @@ private[controller] trait PortOpener {
         port.setParams( SerialPort.BAUDRATE_9600, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE )
         //@ c@ necessary?
         port.purgePort(SerialPort.PURGE_RXCLEAR | SerialPort.PURGE_TXCLEAR)
-        //@ c@ seems to improve reliability
+        //@ c@ i am still getting 0x54, 0xFE bytes, so this doesn't seem to weed out the sent chars.
         port.setEventsMask(SerialPort.MASK_RXCHAR)
       }
       catch { case spe: SerialPortException => throw new ExtensionException("Unable to open port " + portName, spe) }
