@@ -32,16 +32,19 @@ trait CommandWriter {
       counter = 0
     }
 
-    def hasWaitedSincePurge: Boolean = (counter == 0)
+    def hasWaitedSincePurge: Boolean = {
+      System.err.println("+++++++++++CHECKING value of counter, which = " + counter)
+      counter != 0
+    }
     def deferReply() { counter = counter + 1 }
 
     override def act() {
       loop {
         receive {
           case Event(bytes) =>
-            val accumulator = byteArrOpt.getOrElse(Array[Byte]())
-            val newVal = accumulator ++ bytes
-            byteArrOpt = Option(newVal)
+            val priorMessageFrag = byteArrOpt.getOrElse(Array[Byte]())
+            val accumulationArr = priorMessageFrag ++ bytes
+            byteArrOpt = Option(accumulationArr)
           case Request =>
             val result = byteArrOpt
             //byteArrOpt = None
@@ -96,8 +99,7 @@ trait CommandWriter {
         Option(reading)
       }
       else {
-        portListener.deferReply()
-        println("USED COUNTER MECHANISM where bytes were: " + output.mkString("::"))
+        System.err.println("====>ABOUT TO USE COUNTER MECHANISM where bytes were: " + output.mkString("::"))
         None
       }
   }
@@ -108,10 +110,13 @@ trait CommandWriter {
     val candidate = getResponse(lookForSensorValue)
     candidate.foreach( value => staleValues(sensorArrayIndex) = value )
     candidate.orElse{
-      if (portListener.hasWaitedSincePurge)
+      if (portListener.hasWaitedSincePurge) {
+        System.err.println("=======>USING STALE VALUE:" + staleValues(sensorArrayIndex))
         Option(staleValues(sensorArrayIndex))
+      }
       else {
-        println( "re-called into getResponse" )
+        portListener.deferReply()
+        System.err.println( "=================>re-called into getResponse" )
         getResponse(lookForSensorValue)
       }
     }
