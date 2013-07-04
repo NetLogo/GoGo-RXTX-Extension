@@ -14,30 +14,46 @@ trait CommandWriter {
   case class  Event(bytes: Array[Byte])
   case class  Response(bytes: Option[Array[Byte]])
   case object Request
+  //case object Cleaner
+
+  //@ c@ stale values array; alternative to returning -1
+  val staleValues = Array.fill[Int](16)(-2)
 
   protected val portListener = new Actor {
 
     var byteArrOpt: Option[Array[Byte]] = None
+    var counter: Int = 0
 
     start()
 
     //@ c@ added because a message can come in after the first 'harvest' of it.  this leads to stale bytes in the ArrOpt.
     def purgeMe() {
       byteArrOpt = None
+      counter = 0
     }
+
+    def hasWaitedSincePurge: Boolean = (counter == 0)
+    def deferReply() { counter = counter + 1 }
 
     override def act() {
       loop {
         receive {
           case Event(bytes) =>
-            byteArrOpt = Option(bytes)
+            val accumulator = byteArrOpt.getOrElse(Array[Byte]())
+            val newVal = accumulator ++ bytes
+            byteArrOpt = Option(newVal)
           case Request =>
             val result = byteArrOpt
-            byteArrOpt = None
+            //byteArrOpt = None
             //@ c@ PROBLEM --> it's possible (and it happens) for a late-arriving second serial event to come in at this point
-            //this loads the actor with bytes pertinent to the PRIOR read (which will have failed, lacking those important bytes)
-            //so we often get 2 bad reads in a row. purgeMe added for this reason. CEB 7/3/13
+            //this loads the actor with bytes pertinent to the PRIOR read (which would fail, lacking those important bytes)
+            //We need 2 solutions to this . first, clearing old stuff before writing our serial request so we don't have initial garbage.
+            //purgeMe added for this reason. CEB 7/3/13
+            //Second, the reverse.  waiting till a packet completes, if possible.  for this reason, a 2-try solution is attempted
+            //in the wait for replyheader below, and the clear of byteArrayOpt is deferred till the data is accepted..
             reply(Response(result))
+          //case Cleaner =>
+          //  purgeMe()
         }
       }
     }
@@ -49,11 +65,14 @@ trait CommandWriter {
     writeCommand(bytes.toArray)
     !getResponse {
       bytes =>
-        if (bytes.contains(Constants.AckByte))
+        if (bytes.contains(Constants.AckByte)) {
+          portListener.purgeMe()
           Option(Constants.AckByte)
+        }
         else {
           //@ c@ for debugging and protocol analysis. CEB 7/3/13
           println("Expected ACK, got:" + bytes.mkString("::"))
+          portListener.purgeMe()
           None
         }
     }.isEmpty
@@ -67,19 +86,34 @@ trait CommandWriter {
     }
   }
 
-  protected def writeAndWaitForReplyHeader(bytes: Byte*): Option[Int] = {
+  def lookForSensorValue: (Array[Byte]) => (Option[Int]) = {
+    bytes =>
+      val output = bytes.dropWhile(_ != InHeader2).drop(1)
+      if (output.length >= 2) {
+        val reading = ((output(0) << 8) + ((output(1) + 256) % 256))
+        println(output.mkString("::"))
+        portListener.purgeMe()
+        Option(reading)
+      }
+      else {
+        portListener.deferReply()
+        println("USED COUNTER MECHANISM where bytes were: " + output.mkString("::"))
+        None
+      }
+  }
+
+  protected def writeAndWaitForReplyHeader(sensorArrayIndex: Int, bytes: Byte*): Option[Int] = {
     setNewEventListener()
     writeCommand(bytes.toArray)
-    getResponse {
-      bytes =>
-        val output = bytes.dropWhile(_ != InHeader2).drop(1)
-        if (output.length >= 2) {
-          val reading = ((output(0) << 8) + ((output(1) + 256) % 256))
-          println(output.mkString("::"))
-          Option(reading)
-        }
-        else
-          None
+    val candidate = getResponse(lookForSensorValue)
+    candidate.foreach( value => staleValues(sensorArrayIndex) = value )
+    candidate.orElse{
+      if (portListener.hasWaitedSincePurge)
+        Option(staleValues(sensorArrayIndex))
+      else {
+        println( "re-called into getResponse" )
+        getResponse(lookForSensorValue)
+      }
     }
   }
 

@@ -44,7 +44,12 @@ class GoGoExtension extends DefaultClassManager {
     WindowsInstaller(true)
   }
 
-  override def unload(em: ExtensionManager) {
+  //@ c@.  It turns out that not using this allows netlogo to open two successive models using gogo.
+  // it is true that the second one will require disconnecting & reconnecting the gogo board. but
+  // WITH this unload method, there is a crash on attempting to communicate to the board.  WITHOUT
+  // this method, the gogo functions on successive models after dis/reconnect, and on successive runs
+  // of the netlogo application with no hardware meddling. CEB 7/4/13
+  def unloadIsNotUsed(em: ExtensionManager) {
 
     import java.util.{ Vector => JVector }
 
