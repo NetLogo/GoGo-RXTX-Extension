@@ -101,7 +101,7 @@ trait CommandWriter {
     val bytes = portOpt map (_.readBytes(event.getEventValue)) getOrElse (throw new ExtensionException("Boom")) //@ c@
     //@ c@ remove debugging --> but this is how to see that we sometimes get partial replies in multiple serial events.
     // the jssc branch code handles this by keeping around a "leftover" array and by looking for all possible messages always.
-    // different logic is needed here, given the difference in communications architecture. CEB 7/3/13
+    // different logic is needed here (see purgeMe), given the difference in communications architecture. CEB 7/3/13
     println( "serial event: " + bytes.mkString("::") )
     portListener ! Event(bytes)
   }
@@ -111,7 +111,7 @@ trait CommandWriter {
     try {
       port.removeEventListener()
       //@ c@ These two lines are to clean the port from any data that has come in while there were no listeners attached. CEB 7/3/13
-      portListener.purgeMe
+      portListener.purgeMe()
       port.purgePort(SerialPort.PURGE_RXCLEAR | SerialPort.PURGE_TXCLEAR)
     }
     catch {
