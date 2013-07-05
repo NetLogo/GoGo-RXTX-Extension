@@ -83,7 +83,7 @@ trait CommandWriter {
                 System.err.println("cached an ack")
                 cutPoint = pointer + InHeaderSlice.length + relAckLoc  + 1///cut the ack
               }
-              else {
+              else if ( workingCopy.size > 1 ) {
                 if ( sensor != -1 ) {
                   //only write if we were told what sensor was coming
                   val sensReading = ((workingCopy(0) << 8) + ((workingCopy(1) + 256) % 256))
