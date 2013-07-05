@@ -4,6 +4,7 @@ import jssc.{SerialPortEvent, SerialPortEventListener, SerialPortException, Seri
 import org.nlogo.extensions.gogo.controller.Constants._
 import org.nlogo.api.ExtensionException
 import scala.Some
+import java.lang.System
 
 trait CommandWriter {
 
@@ -11,150 +12,233 @@ trait CommandWriter {
 
   import scala.actors.Actor
 
+  val OutHeaderSlice: Array[Byte] = Array(OutHeader1, OutHeader2 )
+  val InHeaderSlice:  Array[Byte] = Array(InHeader1,  InHeader2 )
+
   case class  Event(bytes: Array[Byte])
-  case class  Response(bytes: Option[Array[Byte]])
+  case class  Response(value: Option[Int])
   case object Request
-  //case object Cleaner
+
+
+  var notListening = true
+
 
   //@ c@ stale values array; alternative to returning -1
   val staleValues = Array.fill[Int](16)(-2)
 
   protected val portListener = new Actor {
-
     var byteArrOpt: Option[Array[Byte]] = None
-    var anyNews: Boolean = false
-    var usingTimer: Boolean = false
-    var clock: Long = 0
-    val timeout = 100
+    var syncRespOpt: Option[Int] = None
+    var cachedAck = false
+
     start()
 
-    //@ c@ added because a message can come in after the first 'harvest' of it.  this leads to stale bytes in the ArrOpt.
-    def purgeMe() {
-      byteArrOpt = None
-      usingTimer = false
-      anyNews = false
+    def dropFirstNEntries(n:Int) {
+      System.err.println("request to drop " + n + " entries.")
+      if (byteArrOpt.isEmpty) { System.err.println("!!EMPTY") }
+
+      byteArrOpt.foreach(arr => System.err.println("Before this array: " + arr.mkString(":::")) )
+      byteArrOpt = byteArrOpt.map( arr => arr.drop(n) )
+      byteArrOpt.foreach(arr => System.err.println("Data array is now: " + arr.mkString(":::")) )
     }
 
-    def startClock() {
-      clock = System.currentTimeMillis()
-      System.err.println("Used timer.  timer initialized ")
-      usingTimer = true
+
+    def takeAnAck() : Boolean = {
+      if ( cachedAck ) {
+        cachedAck = false
+        true
+      } else {
+        false
+      }
     }
 
-    def timedOut(): Boolean = {
-      //( usingTimer && (System.currentTimeMillis() - clock) > timeout )
-      if ( usingTimer ) {
-        if ((System.currentTimeMillis() - clock) > timeout) {
-          System.err.println("timer expired")
+    var timerRunning = false
+    var startTime: Long = 0
+    val TimeoutMillis = 100
+    val MagicTimeoutSensorValue = -666
+
+    def timeout() : Boolean = {
+      if ( !timerRunning ) {
+        timerRunning = true
+        startTime = System.currentTimeMillis()
+        false
+      }
+      else {
+        println("Timer is at " + (System.currentTimeMillis() - startTime).toString )
+
+        if (System.currentTimeMillis() - startTime > TimeoutMillis ) {
+          timerRunning = false
           true
         }
-        else
+        else {
           false
-      } else
-        false
+        }
+      }
     }
+
+    def processBytesForSensorData(bytes: Array[Byte]) : Option[Int] = {
+
+      var sensor = -1
+      var ping = false
+      var pointer = bytes.indexOfSlice( OutHeaderSlice )
+      var cutPoint = 0
+      var retn: Option[Int] = None
+      if ( pointer >= 0 ) {
+        System.err.println("FOUND OUTHEADER at pointer val " + pointer)
+        var workingCopy = bytes.slice(pointer + OutHeaderSlice.length, bytes.length)
+        System.err.println("My bytes are " + bytes.mkString(",") + "and my working copy is " + workingCopy.mkString(";") )
+        if (workingCopy.size > 0) {
+          val command = workingCopy(0)
+          if ( command == Constants.CmdPing ) {
+            System.err.println("Found ping")
+            ping = true
+          }
+          if ( command > 31 && command < 61) {
+            //it's a sensor read command.
+            sensor = (command - 32)/4
+            System.err.println("Found sensor command - read sensor# " + (sensor + 1).toString )
+          }
+          pointer = bytes.indexOfSlice( InHeaderSlice, pointer + OutHeaderSlice.length)
+          if ( pointer > 0) {
+            System.err.println("FOUND INHEADER at pointer val " + pointer)
+            workingCopy = bytes.slice(pointer + InHeaderSlice.length, bytes.length)
+            System.err.println("My bytes are " + bytes.mkString(",") + "and my working copy is " + workingCopy.mkString(";") )
+
+            if ( ping && workingCopy.contains(Constants.AckByte)) {
+              val relAckLoc = workingCopy.indexOf(Constants.AckByte)
+              cachedAck = true
+              retn = Option(Constants.AckByte)
+              System.err.println("cached an ack")
+              cutPoint = pointer + InHeaderSlice.length + relAckLoc  + 1//cut any unexpected or hanging acks
+            }
+            else if ( workingCopy.size > 1 ) {
+              if ( sensor != -1 ) {
+                //only write if we were told what sensor was coming
+                val sensReading = ((workingCopy(0) << 8) + ((workingCopy(1) + 256) % 256))
+                staleValues(sensor) = sensReading
+                System.err.println("Found sensor value: " + sensReading)
+                retn = Option(sensReading)
+              }
+              cutPoint = pointer + InHeaderSlice.length + 2 //but regardless, cut the inheader and the data just read
+            }
+          }
+        }
+      }
+      dropFirstNEntries(cutPoint)
+      System.err.println("Preprocessing  about to return... " + retn.getOrElse("A NONE"))
+      retn
+    }
+
 
     override def act() {
       loop {
         receive {
           case Event(bytes) =>
-            anyNews = true
             val priorMessageFrag = byteArrOpt.getOrElse(Array[Byte]())
             val accumulationArr = priorMessageFrag ++ bytes
             byteArrOpt = Option(accumulationArr)
+            syncRespOpt = processBytesForSensorData( accumulationArr )
           case Request =>
-            if (anyNews || timedOut() ) {
-              val result = byteArrOpt
-              //byteArrOpt = None
-              //@ c@ PROBLEM --> it's possible (and it happens) for a late-arriving second serial event to come in at this point
-              //this loads the actor with bytes pertinent to the PRIOR read (which would fail, lacking those important bytes)
-              //We need 2 solutions to this . first, clearing old stuff before writing our serial request so we don't have initial garbage.
-              //purgeMe added for this reason. CEB 7/3/13
-              //Second, the reverse.  waiting till a packet completes, if possible.  for this reason, a 2-try solution is attempted
-              //in the wait for replyheader below, and the clear of byteArrayOpt is deferred till the data is accepted..
-              anyNews = false
-              reply(Response(result))
-            } else {
-              reply(Response(None))
+            var reportOpt = syncRespOpt
+            System.err.println("Actor is about to Respond with... " + reportOpt.getOrElse("A NONE"))
+            if (reportOpt.isEmpty ) {
+              if ( timeout() ) {
+                System.err.println("a none, that is converted to...a magic number- i.e., take the cached")
+                reportOpt = Option(MagicTimeoutSensorValue)
+              } else {
+                System.err.println("Timer having an effect... we're going back into the loop")
+                reportOpt = None
+              }
             }
-          //case Cleaner =>
-          //  purgeMe()
+            syncRespOpt = None
+            reply(Response(reportOpt))
         }
       }
     }
 
+  }
+
+  def searchForAck : (Int) => (Option[Int]) = {
+    b =>
+      if (b == Constants.AckByte) {
+        Option(Constants.AckByte)
+      }
+      else {
+        if ( portListener.takeAnAck() )
+          Option(Constants.AckByte)
+        else
+          None
+      }
   }
 
   protected def writeAndWait(bytes: Byte*): Boolean = {
-    setNewEventListener()
     writeCommand(bytes.toArray)
-    !getResponse {
-      bytes =>
-        if (bytes.contains(Constants.AckByte)) {
-          portListener.purgeMe()
-          Option(Constants.AckByte)
-        }
-        else {
-          //@ c@ for debugging and protocol analysis. CEB 7/3/13
-          println("Expected ACK, got:" + bytes.mkString("::"))
-          portListener.purgeMe()
-          None
-        }
-    }.isEmpty
+    var success = getResponse(searchForAck)
+    if ( !success.isEmpty ) {
+      //@ c@ for debugging and protocol analysis. CEB 7/3/13
+      System.err.println("Got the ACK i expected to get on the first try:")
+    } else {
+      System.err.println("expected ACK, didn't get it")
+      System.err.println("retrying at " + System.currentTimeMillis() )
+      success = getResponse(searchForAck)
+      System.err.println("moving on at " + System.currentTimeMillis() )
+    }
+    !success.isEmpty
   }
 
-  protected def getResponse(f: (Array[Byte]) => (Option[Int])) : Option[Int] = {
+  protected def getResponse(f: (Int) => (Option[Int])) : Option[Int] = {
     (portListener !? Request) match {
       case Response(None)        => getResponse(f)
-      case Response(Some(bytes)) => f(bytes)
-      case _                     => None
+      case Response(Some(i))     => f(i)
+      case _                     => {System.err.println("GOT TO THE CATCHALL UNEXPECTEDLY")
+                                    None}
     }
   }
 
-  def lookForSensorValue: (Array[Byte]) => (Option[Int]) = {
-    bytes =>
-      val output = bytes.dropWhile(_ != InHeader2).drop(1)
-      if (output.length >= 2) {
-        val reading = ((output(0) << 8) + ((output(1) + 256) % 256))
-        println(output.mkString("::"))
-        portListener.purgeMe()
-        Option(reading)
-      }
-      else {
-        System.err.println("====>ABOUT TO RETURN 'NONE' and trigger retry mechanism.  Bytes were: " + output.mkString("::"))
+
+
+  def lookForSensorValue: (Int) => (Option[Int]) = {
+    i =>
+      if ( i != portListener.MagicTimeoutSensorValue )
+        Option(i)
+      else
         None
-      }
   }
 
   protected def writeAndWaitForReplyHeader(sensorArrayIndex: Int, bytes: Byte*): Option[Int] = {
-    setNewEventListener()
+    //setNewEventListener()
     writeCommand(bytes.toArray)
-    val candidate = getResponse(lookForSensorValue)
-    candidate.foreach{
-      value => staleValues(sensorArrayIndex) = value
-         System.err.println("Updating Stale value cache.  now " + staleValues.mkString(","))
+    //val candidate = getResponse(lookForSensorValue)
+    //candidate.foreach{
+    //  value => staleValues(sensorArrayIndex) = value
+    //     System.err.println("Updating Stale value cache.  now " + staleValues.mkString(","))
+    //}
+    //candidate.orElse(Option(staleValues(sensorArrayIndex)))
+    try {
+       Thread.sleep(10)
     }
-    candidate.orElse{
-      System.err.println( "=================>re-calling into getResponse" )
-      portListener.startClock()
-      val aRetry = getResponse(lookForSensorValue)
-      aRetry.foreach{
-        value => staleValues(sensorArrayIndex) = value
-           System.err.println("Updating Stale value cache (on retry). " + staleValues.mkString(","))
-      }
-      aRetry.orElse {
-        System.err.println("=======> NO valid response, Sending cached STALE VALUE:" + staleValues(sensorArrayIndex))
-        Option(staleValues(sensorArrayIndex))
-      }
+    catch {
+      case _:InterruptedException => System.out.println("interrupted")
     }
+    val retVal = getResponse(lookForSensorValue).orElse{
+      System.err.println("Got a NONE back from getResponse()")
+      Option(staleValues(sensorArrayIndex))
+    }
+    System.err.println(retVal.getOrElse("NONE"))
+    println("duplicating output to stdout: " + retVal.getOrElse("NONE"))
+    retVal
   }
 
 
   private def writeCommand(command: Array[Byte]) {
     val myPort = portOpt.getOrElse( throw new ExtensionException("Error in writing to " + portName))
+    if ( notListening ) {
+      notListening = false
+      setNewEventListener()
+    }
     myPort synchronized {
       try {
-        myPort.writeBytes(Array(OutHeader1,OutHeader2) ++ command)
+        myPort.writeBytes(OutHeaderSlice ++ command)
       }
       catch {
         case e: SerialPortException  => e.printStackTrace()
@@ -168,21 +252,12 @@ trait CommandWriter {
     //@ c@ remove debugging --> but this is how to see that we sometimes get partial replies in multiple serial events.
     // the jssc branch code handles this by keeping around a "leftover" array and by looking for all possible messages always.
     // different logic is needed here (see purgeMe), given the difference in communications architecture. CEB 7/3/13
-    println( "serial event: " + bytes.mkString("::") )
+    System.err.println( "serial event: " + bytes.mkString("::") )
     portListener ! Event(bytes)
   }
 
   private def setNewEventListener() {
     val port = portOpt.getOrElse(throw new ExtensionException("No port available"))
-    try {
-      port.removeEventListener()
-      //@ c@ These two lines are to clean the port from any data that has come in while there were no listeners attached. CEB 7/3/13
-      portListener.purgeMe()
-      port.purgePort(SerialPort.PURGE_RXCLEAR | SerialPort.PURGE_TXCLEAR)
-    }
-    catch {
-      case ex: SerialPortException =>
-    }
     port.addEventListener(this)
   }
 
