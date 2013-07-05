@@ -22,7 +22,7 @@ trait CommandWriter {
 
   var notListening = true
   //@ c@ stale values array; alternative to returning -1
-  val staleValues = Array.fill[Int](16)(-2)
+  val staleValues = Array.fill[Int](16)(-1)  //supporting 16 sensors.
   val MagicTimeoutSensorValue = -666
 
 
@@ -56,7 +56,6 @@ trait CommandWriter {
 
     def processBytesForSensorData(bytes: Array[Byte]) : Option[Int] = {
       var sensor = -1
-      var ping = false
       var pointer = bytes.indexOfSlice( OutHeaderSlice )
       var cutPoint = 0
       var retn: Option[Int] = None
@@ -66,11 +65,7 @@ trait CommandWriter {
         System.err.println("My bytes are " + bytes.mkString(",") + "and my working copy is " + workingCopy.mkString(";") )
         if (workingCopy.size > 0) {
           val command = workingCopy(0)
-          if ( command == Constants.CmdPing ) {
-            System.err.println("Found ping")
-            ping = true
-          }
-          if ( command > 31 && command < 61) {
+          if ( command > 31 && command < 92) {  //supporting 16 sensors.
             //it's a sensor read command.
             sensor = (command - 32)/4
             System.err.println("Found sensor command - read sensor# " + (sensor + 1).toString )
@@ -92,9 +87,11 @@ trait CommandWriter {
                 if ( sensor != -1 ) {
                   //only write if we were told what sensor was coming
                   val sensReading = ((workingCopy(0) << 8) + ((workingCopy(1) + 256) % 256))
-                  staleValues(sensor) = sensReading
-                  System.err.println("Found sensor value: " + sensReading)
-                  retn = Option(sensReading)
+                  if ( sensReading >= 0 && sensReading < 1024 ) {
+                    staleValues(sensor) = sensReading
+                    System.err.println("Found valid sensor value: " + sensReading)
+                    retn = Option(sensReading)
+                  }
                 }
                 cutPoint = pointer + InHeaderSlice.length + 2 //but regardless, cut the inheader and the data just read
               }
@@ -138,7 +135,7 @@ trait CommandWriter {
 
   protected def writeAndWait(bytes: Byte*): Boolean = {
     writeCommand(bytes.toArray)
-    !getResponse(searchForAck).isEmpty  //always true now -- just here for protocol behavior analysis
+    !getResponse(searchForAck).isEmpty  //always true now -- keep for protocol behavior analysis
   }
 
   protected def getResponse(f: (Int) => (Option[Int])) : Option[Int] = {
