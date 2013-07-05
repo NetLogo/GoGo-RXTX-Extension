@@ -1,6 +1,6 @@
 package org.nlogo.extensions.gogo.controller
 
-import jssc.{SerialPortEvent, SerialPortEventListener, SerialPortException, SerialPort }
+import jssc.{SerialPortEvent, SerialPortEventListener, SerialPortException }
 import org.nlogo.extensions.gogo.controller.Constants._
 import org.nlogo.api.ExtensionException
 import scala.Some
@@ -21,25 +21,26 @@ trait CommandWriter {
 
 
   var notListening = true
-
-
   //@ c@ stale values array; alternative to returning -1
   val staleValues = Array.fill[Int](16)(-2)
+  val MagicTimeoutSensorValue = -666
+
 
   protected val portListener = new Actor {
-    var byteArrOpt: Option[Array[Byte]] = None
+    var byteArrOpt: Option[Array[Byte]] = Option(Array[Byte]())
     var syncRespOpt: Option[Int] = None
     var cachedAck = false
+
 
     start()
 
     def dropFirstNEntries(n:Int) {
       System.err.println("request to drop " + n + " entries.")
-      if (byteArrOpt.isEmpty) { System.err.println("!!EMPTY") }
+      if (byteArrOpt.isEmpty) { System.err.println("!!NOT YET INITIALIZED") }
 
-      byteArrOpt.foreach(arr => System.err.println("Before this array: " + arr.mkString(":::")) )
+      byteArrOpt.foreach(arr => System.err.println("Before dropping, history array=" + arr.mkString("==")) )
       byteArrOpt = byteArrOpt.map( arr => arr.drop(n) )
-      byteArrOpt.foreach(arr => System.err.println("Data array is now: " + arr.mkString(":::")) )
+      byteArrOpt.foreach(arr => System.err.println("After drop, data history array=" + arr.mkString("__")) )
     }
 
 
@@ -52,32 +53,8 @@ trait CommandWriter {
       }
     }
 
-    var timerRunning = false
-    var startTime: Long = 0
-    val TimeoutMillis = 100
-    val MagicTimeoutSensorValue = -666
-
-    def timeout() : Boolean = {
-      if ( !timerRunning ) {
-        timerRunning = true
-        startTime = System.currentTimeMillis()
-        false
-      }
-      else {
-        println("Timer is at " + (System.currentTimeMillis() - startTime).toString )
-
-        if (System.currentTimeMillis() - startTime > TimeoutMillis ) {
-          timerRunning = false
-          true
-        }
-        else {
-          false
-        }
-      }
-    }
 
     def processBytesForSensorData(bytes: Array[Byte]) : Option[Int] = {
-
       var sensor = -1
       var ping = false
       var pointer = bytes.indexOfSlice( OutHeaderSlice )
@@ -103,29 +80,30 @@ trait CommandWriter {
             System.err.println("FOUND INHEADER at pointer val " + pointer)
             workingCopy = bytes.slice(pointer + InHeaderSlice.length, bytes.length)
             System.err.println("My bytes are " + bytes.mkString(",") + "and my working copy is " + workingCopy.mkString(";") )
-
-            if ( ping && workingCopy.contains(Constants.AckByte)) {
-              val relAckLoc = workingCopy.indexOf(Constants.AckByte)
-              cachedAck = true
-              retn = Option(Constants.AckByte)
-              System.err.println("cached an ack")
-              cutPoint = pointer + InHeaderSlice.length + relAckLoc  + 1//cut any unexpected or hanging acks
-            }
-            else if ( workingCopy.size > 1 ) {
-              if ( sensor != -1 ) {
-                //only write if we were told what sensor was coming
-                val sensReading = ((workingCopy(0) << 8) + ((workingCopy(1) + 256) % 256))
-                staleValues(sensor) = sensReading
-                System.err.println("Found sensor value: " + sensReading)
-                retn = Option(sensReading)
+            if ( workingCopy.size > 0 ) {
+              if ( workingCopy(0) == (Constants.AckByte) ) {
+                val relAckLoc = workingCopy.indexOf(Constants.AckByte)
+                cachedAck = true
+                retn = Option(Constants.AckByte)
+                System.err.println("cached an ack")
+                cutPoint = pointer + InHeaderSlice.length + relAckLoc  + 1///cut the ack
               }
-              cutPoint = pointer + InHeaderSlice.length + 2 //but regardless, cut the inheader and the data just read
+              else {
+                if ( sensor != -1 ) {
+                  //only write if we were told what sensor was coming
+                  val sensReading = ((workingCopy(0) << 8) + ((workingCopy(1) + 256) % 256))
+                  staleValues(sensor) = sensReading
+                  System.err.println("Found sensor value: " + sensReading)
+                  retn = Option(sensReading)
+                }
+                cutPoint = pointer + InHeaderSlice.length + 2 //but regardless, cut the inheader and the data just read
+              }
             }
           }
         }
       }
       dropFirstNEntries(cutPoint)
-      System.err.println("Preprocessing  about to return... " + retn.getOrElse("A NONE"))
+      System.err.println("-------->Preprocessing work is about to return... " + retn.getOrElse("A NONE"))
       retn
     }
 
@@ -137,20 +115,12 @@ trait CommandWriter {
             val priorMessageFrag = byteArrOpt.getOrElse(Array[Byte]())
             val accumulationArr = priorMessageFrag ++ bytes
             byteArrOpt = Option(accumulationArr)
-            syncRespOpt = processBytesForSensorData( accumulationArr )
+            val toReturn = processBytesForSensorData( accumulationArr ).getOrElse(MagicTimeoutSensorValue)
+            syncRespOpt = Option(toReturn)
           case Request =>
-            var reportOpt = syncRespOpt
+            val reportOpt = syncRespOpt
             System.err.println("Actor is about to Respond with... " + reportOpt.getOrElse("A NONE"))
-            if (reportOpt.isEmpty ) {
-              if ( timeout() ) {
-                System.err.println("a none, that is converted to...a magic number- i.e., take the cached")
-                reportOpt = Option(MagicTimeoutSensorValue)
-              } else {
-                System.err.println("Timer having an effect... we're going back into the loop")
-                reportOpt = None
-              }
-            }
-            syncRespOpt = None
+            syncRespOpt = None  //clear this "there's news" variable
             reply(Response(reportOpt))
         }
       }
@@ -160,30 +130,15 @@ trait CommandWriter {
 
   def searchForAck : (Int) => (Option[Int]) = {
     b =>
-      if (b == Constants.AckByte) {
-        Option(Constants.AckByte)
+      if (b != Constants.AckByte) {
+        System.err.println("NOTE: didn't get an ack right away")
       }
-      else {
-        if ( portListener.takeAnAck() )
-          Option(Constants.AckByte)
-        else
-          None
-      }
+      Option(Constants.AckByte)
   }
 
   protected def writeAndWait(bytes: Byte*): Boolean = {
     writeCommand(bytes.toArray)
-    var success = getResponse(searchForAck)
-    if ( !success.isEmpty ) {
-      //@ c@ for debugging and protocol analysis. CEB 7/3/13
-      System.err.println("Got the ACK i expected to get on the first try:")
-    } else {
-      System.err.println("expected ACK, didn't get it")
-      System.err.println("retrying at " + System.currentTimeMillis() )
-      success = getResponse(searchForAck)
-      System.err.println("moving on at " + System.currentTimeMillis() )
-    }
-    !success.isEmpty
+    !getResponse(searchForAck).isEmpty  //always true now -- just here for protocol behavior analysis
   }
 
   protected def getResponse(f: (Int) => (Option[Int])) : Option[Int] = {
@@ -195,37 +150,27 @@ trait CommandWriter {
     }
   }
 
-
-
   def lookForSensorValue: (Int) => (Option[Int]) = {
     i =>
-      if ( i != portListener.MagicTimeoutSensorValue )
+      if ( i != MagicTimeoutSensorValue )
         Option(i)
       else
         None
   }
 
   protected def writeAndWaitForReplyHeader(sensorArrayIndex: Int, bytes: Byte*): Option[Int] = {
-    //setNewEventListener()
     writeCommand(bytes.toArray)
-    //val candidate = getResponse(lookForSensorValue)
-    //candidate.foreach{
-    //  value => staleValues(sensorArrayIndex) = value
-    //     System.err.println("Updating Stale value cache.  now " + staleValues.mkString(","))
-    //}
-    //candidate.orElse(Option(staleValues(sensorArrayIndex)))
     try {
        Thread.sleep(10)
     }
     catch {
-      case _:InterruptedException => System.out.println("interrupted")
+      case _:InterruptedException => System.out.println("thread sleep interrupted")
     }
     val retVal = getResponse(lookForSensorValue).orElse{
       System.err.println("Got a NONE back from getResponse()")
       Option(staleValues(sensorArrayIndex))
     }
-    System.err.println(retVal.getOrElse("NONE"))
-    println("duplicating output to stdout: " + retVal.getOrElse("NONE"))
+    System.err.println("+!+!+!!+!+RETURNING TO NETLOGO: " + retVal.getOrElse("NONE"))
     retVal
   }
 
@@ -256,7 +201,7 @@ trait CommandWriter {
     portListener ! Event(bytes)
   }
 
-  private def setNewEventListener() {
+  private  def setNewEventListener() {
     val port = portOpt.getOrElse(throw new ExtensionException("No port available"))
     port.addEventListener(this)
   }
