@@ -65,7 +65,7 @@ trait CommandWriter {
         System.err.println("My bytes are " + bytes.mkString(",") + "and my working copy is " + workingCopy.mkString(";") )
         if (workingCopy.size > 0) {
           val command = workingCopy(0)
-          if ( command > 31 && command < 92) {  //supporting 16 sensors.
+          if ( command > 31 && command < 93) {  //supporting 16 sensors.
             //it's a sensor read command.
             sensor = (command - 32)/4
             System.err.println("Found sensor command - read sensor# " + (sensor + 1).toString )
