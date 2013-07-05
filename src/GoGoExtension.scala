@@ -44,40 +44,42 @@ class GoGoExtension extends DefaultClassManager {
     WindowsInstaller(true)
   }
 
-  //@ c@.  It turns out that not using this allows netlogo to open two successive models using gogo.
+  //@ c@.  It turns out that not using this on mac allows netlogo to open two successive models using gogo.
   // it is true that the second one will require disconnecting & reconnecting the gogo board. but
   // WITH this unload method, there is a crash on attempting to communicate to the board.  WITHOUT
   // this method, the gogo functions on successive models after dis/reconnect, and on successive runs
-  // of the netlogo application with no hardware meddling. CEB 7/4/13
-  def unloadIsNotUsed(em: ExtensionManager) {
+  // of the netlogo application with no hardware meddling. CEB 7/4/13.  On windows, it works as "unload" is
+  // actually intended to work
+  override def unload (em: ExtensionManager) {
 
-    import java.util.{ Vector => JVector }
+    val osName = System.getProperty("os.name").toLowerCase
+    if (osName.contains("windows")) {
+      import java.util.{ Vector => JVector }
+      manager.close()
 
+      try {
 
-    manager.close()
+        val classLoader = this.getClass.getClassLoader
+        val field       = classOf[ClassLoader].getDeclaredField("nativeLibraries")
+        field.setAccessible(true)
 
-    try {
+        field.get(classLoader) match {
+          case libs: JVector[_] =>
+            import scala.collection.JavaConverters.iterableAsScalaIterableConverter
+            libs.asScala.foreach {
+              lib =>
+                val finalize = lib.getClass.getDeclaredMethod("finalize")
+                finalize.setAccessible(true)
+                finalize.invoke(lib)
+            }
+          case _ =>
+            throw new ExtensionException("Failed to reflectively cast libraries to `JVector`")
+        }
 
-      val classLoader = this.getClass.getClassLoader
-      val field       = classOf[ClassLoader].getDeclaredField("nativeLibraries")
-      field.setAccessible(true)
-
-      field.get(classLoader) match {
-        case libs: JVector[_] =>
-          import scala.collection.JavaConverters.iterableAsScalaIterableConverter
-          libs.asScala.foreach {
-            lib =>
-              val finalize = lib.getClass.getDeclaredMethod("finalize")
-              finalize.setAccessible(true)
-              finalize.invoke(lib)
-          }
-        case _ =>
-          throw new ExtensionException("Failed to reflectively cast libraries to `JVector`")
       }
-
-    }
-    catch {
-      case e: Exception => System.err.println(e.getMessage)
+      catch {
+        case e: Exception => System.err.println(e.getMessage)
+      }
     }
 
   }
