@@ -43,7 +43,7 @@ trait CommandWriter {
       byteArrOpt.foreach(arr => System.err.println("After drop, data history array=" + arr.mkString("__")) )
     }
 
-
+    /*
     def takeAnAck() : Boolean = {
       if ( cachedAck ) {
         cachedAck = false
@@ -52,9 +52,68 @@ trait CommandWriter {
         false
       }
     }
+    */
 
+    val sensorCommands = Array[Byte](CmdReadSensor, CmdReadExtendedSensor )
 
-    def processBytesForSensorData(bytes: Array[Byte]) : Option[Int] = {
+    def processBytesForSensorData(bytesIn: Array[Byte]) : Option[Int] = {
+      var bytes = bytesIn
+      var cutPoint = 0
+      var retn: Option[Int] = None
+
+      var beginOutMsg = bytes.indexOfSlice( OutHeaderSlice )
+      var beginInMsg = bytes.indexOfSlice( InHeaderSlice )
+
+      while ( beginOutMsg >= 0 && beginInMsg >= 0 ) {
+
+        while ( beginInMsg >= 0 && beginInMsg < beginOutMsg ) {
+          println( "NOTE: there was a hanging In Message")
+          dropFirstNEntries(beginInMsg + InHeaderSlice.length)
+          bytes = bytes.drop(beginInMsg + InHeaderSlice.length)
+
+          beginOutMsg = bytes.indexOfSlice( OutHeaderSlice )
+          beginInMsg = bytes.indexOfSlice( InHeaderSlice )
+        }
+
+        if ( beginOutMsg >= 0 && beginInMsg > beginOutMsg ) {
+          val outMsgBytes = bytes.slice( beginOutMsg + OutHeaderSlice.length, beginInMsg )
+          val inMsgBytes = bytes.slice( beginInMsg + InHeaderSlice.length, beginInMsg + InHeaderSlice.length + 4 ) //maxlen of in but sure not to get to a next in.
+
+          val command = outMsgBytes(0)
+          if ( !sensorCommands.contains(command) && inMsgBytes.contains(AckByte) ) {
+            cutPoint = beginInMsg + InHeaderSlice.length + inMsgBytes.indexOf(AckByte) + 1
+            retn = Option(AckByte)
+          }
+          else if ( command > 31 && command < 93) {  //supporting 16 sensors.
+            //it's a sensor read command.
+            val sensor = (command - 32)/4
+            if ( inMsgBytes.length > 1 ) {
+
+              //only write if we were told what sensor was coming
+              val sensReading = ((inMsgBytes(0) << 8) + ((inMsgBytes(1) + 256) % 256))
+              if ( sensReading >= 0 && sensReading < 1024 ) {
+                staleValues(sensor) = sensReading
+                cutPoint = beginInMsg + InHeaderSlice.length + 2
+                retn = Option(sensReading)
+              }
+            } else {
+              cutPoint = beginInMsg + InHeaderSlice.length
+            }
+          }
+        }
+
+        dropFirstNEntries(cutPoint)
+        bytes = bytes.drop(cutPoint)
+        beginOutMsg = bytes.indexOfSlice( OutHeaderSlice )
+        beginInMsg = bytes.indexOfSlice( InHeaderSlice )
+        cutPoint = 0
+
+      }
+      retn
+    }
+
+    /*
+    def OLDprocessBytesForSensorData(bytes: Array[Byte]) : Option[Int] = {
       var sensor = -1
       var pointer = bytes.indexOfSlice( OutHeaderSlice )
       var cutPoint = 0
@@ -103,6 +162,7 @@ trait CommandWriter {
       System.err.println("-------->Preprocessing work is about to return... " + retn.getOrElse("A NONE"))
       retn
     }
+    */
 
 
     override def act() {
