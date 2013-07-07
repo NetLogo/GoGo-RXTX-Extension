@@ -21,7 +21,7 @@ trait CommandWriter {
 
 
   var notListening = true
-  //@ c@ 'stale' values array; sensor results build out of analyzing history array
+  //@ c@ 'stale' values array; sensor results built out of analyzing history array
   val staleValues = Array.fill[Int](16)(-1)  //supporting 16 sensors.
   val MagicTimeoutSensorValue = -666
 
@@ -146,7 +146,7 @@ trait CommandWriter {
        Thread.sleep(10)
     }
     catch {
-      case _:InterruptedException => System.out.println("thread sleep interrupted")
+      case _:InterruptedException => System.err.println("thread sleep interrupted")
     }
     val retVal = getResponse(lookForSensorValue).orElse{
       Option(staleValues(sensorArrayIndex))
