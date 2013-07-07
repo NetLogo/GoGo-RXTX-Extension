@@ -64,7 +64,7 @@ trait CommandWriter {
       var beginOutMsg = bytes.indexOfSlice( OutHeaderSlice )
       var beginInMsg = bytes.indexOfSlice( InHeaderSlice )
 
-      while ( beginOutMsg >= 0 && beginInMsg >= 0 ) {
+      while ( beginOutMsg >= 0 && beginInMsg >= 0 && bytes.length > beginInMsg + InHeaderSlice.length) {
 
         while ( beginInMsg >= 0 && beginInMsg < beginOutMsg ) {
           println( "NOTE: there was a hanging In Message")
