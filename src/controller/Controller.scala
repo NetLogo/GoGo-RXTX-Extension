@@ -21,7 +21,7 @@ class Controller(override protected val portName: String)
 
   def currentPort: Option[SerialPort] = portOpt
 
-  //@ c@ per gogo board protocol doc, ping returns an ack PLUS 3 version bytes.  however, gogo models show lots of retries, 
+  //@ c@ per gogo board protocol doc, ping returns an ack PLUS 3 version bytes.  however, gogo models show lots of retries,
   // and my own testing shows frequent message fragmentation that falsely suggests failed pings. i have removed the validation
   // of acks as a result. CEB 7/3/13
   def ping():           Boolean = portOpt map { _ => writeAndWait(CmdPing) } getOrElse false

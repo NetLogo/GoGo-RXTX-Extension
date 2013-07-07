@@ -120,7 +120,7 @@ trait CommandWriter {
 
   protected def writeAndWait(bytes: Byte*): Boolean = {
     writeCommand(bytes.toArray)
-    !getResponse(searchForAck).isEmpty  //always true now -- keep for protocol behavior analysis
+    !getResponse(searchForAck).isEmpty  //always true now -- no more ack/ping validation
   }
 
   protected def getResponse(f: (Int) => (Option[Int])) : Option[Int] = {
@@ -144,14 +144,13 @@ trait CommandWriter {
     writeCommand(bytes.toArray)
     try {
        Thread.sleep(10)
+       //this sleep reduces message fragmentation on return bytes, making it much more likely
+       //to return the current value in getResponse() rather than falling back to the last-valid value.  CEB 7/7/13
     }
     catch {
       case _:InterruptedException => System.err.println("thread sleep interrupted")
     }
-    val retVal = getResponse(lookForSensorValue).orElse{
-      Option(staleValues(sensorArrayIndex))
-    }
-    retVal
+    getResponse(lookForSensorValue).orElse{ Option(staleValues(sensorArrayIndex)) }
   }
 
 
