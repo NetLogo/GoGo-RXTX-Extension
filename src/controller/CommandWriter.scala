@@ -66,7 +66,7 @@ trait CommandWriter {
             // here, cut to end of inheader, losing the semantics of the in message (but we don't know what it's responding to.
             cutPoint = beginInMsg + InHeaderSlice.length
             //want to see how common it is...
-            System.err.println("Received empty command with non-empty reply")
+            System.err.println("Received empty command with non-empty reply in data array:" + bytes.mkString("::"))
           }
           else {
             val command = outMsgBytes(0)
