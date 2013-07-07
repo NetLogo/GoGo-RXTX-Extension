@@ -39,8 +39,8 @@ trait CommandWriter {
 
     val sensorCommands = Array[Byte](CmdReadSensor, CmdReadExtendedSensor )
 
-    def processBytesForSensorData(bytesIn: Array[Byte]) : Option[Int] = {
-      var bytes = bytesIn
+    def processBytesForSensorData() : Option[Int] = {
+      var bytes = byteArrOpt.getOrElse(Array[Byte]())
       var cutPoint = 0
       var retn: Option[Int] = None
 
@@ -51,7 +51,7 @@ trait CommandWriter {
 
         while ( beginInMsg >= 0 && beginInMsg < beginOutMsg ) {
           dropFirstNEntries(beginInMsg + InHeaderSlice.length)
-          bytes = bytes.drop(beginInMsg + InHeaderSlice.length)
+          bytes = byteArrOpt.getOrElse(Array[Byte]())
 
           beginOutMsg = bytes.indexOfSlice( OutHeaderSlice )
           beginInMsg = bytes.indexOfSlice( InHeaderSlice )
@@ -61,30 +61,39 @@ trait CommandWriter {
           val outMsgBytes = bytes.slice( beginOutMsg + OutHeaderSlice.length, beginInMsg )
           val inMsgBytes = bytes.slice( beginInMsg + InHeaderSlice.length, beginInMsg + InHeaderSlice.length + 4 ) //maxlen of in but sure not to get to a next in.
 
-          val command = outMsgBytes(0)
-          if ( !sensorCommands.contains(command) && inMsgBytes.contains(AckByte) ) {
-            cutPoint = beginInMsg + InHeaderSlice.length + inMsgBytes.indexOf(AckByte) + 1
-            retn = Option(AckByte)
+          if (outMsgBytes.length == 0) {
+            //case (actually observed) where the outmessage was lost but there was an inmessage in return, waiting.
+            // here, cut to end of inheader, losing the semantics of the in message (but we don't know what it's responding to.
+            cutPoint = beginInMsg + InHeaderSlice.length
+            //want to see how common it is...
+            System.err.println("Received empty command with non-empty reply")
           }
-          else if ( command > 31 && command < 93) {  //supporting 16 sensors.
-            //it's a sensor read command.
-            val sensor = (command - 32)/4
-            if ( inMsgBytes.length > 1 ) {
-              val sensReading = ((inMsgBytes(0) << 8) + ((inMsgBytes(1) + 256) % 256))
-              if ( sensReading >= 0 && sensReading < 1024 ) {
-                //only write if sensor value is valid
-                staleValues(sensor) = sensReading
-                cutPoint = beginInMsg + InHeaderSlice.length + 2
-                retn = Option(sensReading)
+          else {
+            val command = outMsgBytes(0)
+            if ( !sensorCommands.contains(command) && inMsgBytes.contains(AckByte) ) {
+              cutPoint = beginInMsg + InHeaderSlice.length + inMsgBytes.indexOf(AckByte) + 1
+              retn = Option(AckByte)
+            }
+            else if ( command > 31 && command < 93) {  //supporting 16 sensors.
+              //it's a sensor read command.
+              val sensor = (command - 32)/4
+              if ( inMsgBytes.length > 1 ) {
+                val sensReading = ((inMsgBytes(0) << 8) + ((inMsgBytes(1) + 256) % 256))
+                if ( sensReading >= 0 && sensReading < 1024 ) {
+                  //only write if sensor value is valid
+                  staleValues(sensor) = sensReading
+                  cutPoint = beginInMsg + InHeaderSlice.length + 2
+                  retn = Option(sensReading)
+                }
+              } else {
+                cutPoint = beginInMsg + InHeaderSlice.length
               }
-            } else {
-              cutPoint = beginInMsg + InHeaderSlice.length
             }
           }
         }
 
         dropFirstNEntries(cutPoint)
-        bytes = bytes.drop(cutPoint)
+        bytes = byteArrOpt.getOrElse(Array[Byte]())
         beginOutMsg = bytes.indexOfSlice( OutHeaderSlice )
         beginInMsg = bytes.indexOfSlice( InHeaderSlice )
         cutPoint = 0
@@ -101,7 +110,7 @@ trait CommandWriter {
             val priorMessageFrag = byteArrOpt.getOrElse(Array[Byte]())
             val accumulationArr = priorMessageFrag ++ bytes
             byteArrOpt = Option(accumulationArr)
-            val toReturn = processBytesForSensorData( accumulationArr ).getOrElse(MagicTimeoutSensorValue)
+            val toReturn = processBytesForSensorData().getOrElse(MagicTimeoutSensorValue)
             syncRespOpt = Option(toReturn)
           case Request =>
             val reportOpt = syncRespOpt
