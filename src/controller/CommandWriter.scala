@@ -67,6 +67,7 @@ trait CommandWriter {
             cutPoint = beginInMsg + InHeaderSlice.length
             //want to see how common it is...
             System.err.println("Received empty command with non-empty reply in data array:" + bytes.mkString("::"))
+            //SUSPECT that this happens in low-battery conditions with motor commands.
           }
           else {
             val command = outMsgBytes(0)
