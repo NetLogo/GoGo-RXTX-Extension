@@ -1,8 +1,7 @@
 *~
 *.orig
 *.jar
-/project/
-/target/
+target/
 /lib
 /gogo.zip
 .DS_Store
