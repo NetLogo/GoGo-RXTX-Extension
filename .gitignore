@@ -1,6 +1,7 @@
 *~
 *.orig
 *.jar
+*.jar.pack.gz
 target/
 /lib
 /gogo.zip
