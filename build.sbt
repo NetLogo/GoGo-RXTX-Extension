@@ -9,13 +9,13 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-Xlint", "-Xfatal-warnings"
 
 javacOptions ++= Seq("-g", "-deprecation", "-Xlint:all", "-Xlint:-serial", "-Xlint:-path",
                      "-encoding", "us-ascii",
-                     "-source", "1.5", "-target", "1.5")
+                     "-source", "1.7", "-target", "1.7")
 
 libraryDependencies ++= Seq(
-  "org.nlogo" % "NetLogo" % "5.x-8568f6f4" from
-    "http://ccl.northwestern.edu/devel/NetLogo-8568f6f4.jar",
-  "org.nlogo" % "NetLogoHeadless" % "5.x-8568f6f4" from
-    "http://ccl.northwestern.edu/devel/NetLogoHeadless-8568f6f4.jar",
+  "org.nlogo" % "NetLogoHeadless" % "6.0-M1" from
+    "http://ccl.northwestern.edu/devel/6.0-M1/NetLogoHeadless.jar",
+  "org.nlogo" % "NetLogo" % "6.0-M1" from
+    "http://ccl.northwestern.edu/devel/6.0-M1/NetLogo.jar",
   "rxtx" % "rxtx" % "2.2pre2" from
     "http://ccl.northwestern.edu/devel/rxtx-2.2pre2-bins/RXTXcomm.jar",
   "org.picocontainer" % "picocontainer" % "2.13.6"
